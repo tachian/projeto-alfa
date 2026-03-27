@@ -48,7 +48,8 @@ const marketRecord = {
   createdAt: new Date("2026-03-27T10:00:00.000Z"),
   updatedAt: new Date("2026-03-27T10:00:00.000Z"),
   rules: {
-    resolveSource: "Federal Reserve statement",
+    officialSourceLabel: "Federal Reserve statement",
+    officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
     resolutionRules: "Resolves YES if the Fed announces a rate cut.",
     createdAt: new Date("2026-03-27T10:00:00.000Z"),
     updatedAt: new Date("2026-03-27T10:00:00.000Z"),
@@ -107,7 +108,8 @@ describe("market admin routes", () => {
         status: "draft",
         openAt: "2026-06-01T10:00:00.000Z",
         closeAt: "2026-06-18T21:00:00.000Z",
-        resolveSource: "Federal Reserve statement",
+        officialSourceLabel: "Federal Reserve statement",
+        officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
         resolutionRules: "Resolves YES if the Fed announces a rate cut.",
       },
     });

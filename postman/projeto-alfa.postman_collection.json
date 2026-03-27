@@ -313,6 +313,58 @@
       ]
     },
     {
+      "name": "Markets",
+      "item": [
+        {
+          "name": "List Markets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/markets?status=open&category=macro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "markets"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                },
+                {
+                  "key": "category",
+                  "value": "macro"
+                }
+              ]
+            },
+            "description": "Lista mercados publicos com filtros opcionais por estado e categoria."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Market",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "markets",
+                "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520"
+              ]
+            },
+            "description": "Retorna o detalhe publico do mercado, incluindo regras e fonte oficial."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Payments",
       "item": [
         {
@@ -444,6 +496,67 @@
               ]
             },
             "description": "Lista o historico de saques do usuario autenticado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Markets",
+      "item": [
+        {
+          "name": "Create Market",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"fed-cuts-rates\",\n  \"title\": \"Fed cuts rates in June\",\n  \"category\": \"macro\",\n  \"status\": \"draft\",\n  \"openAt\": \"2026-06-01T10:00:00.000Z\",\n  \"closeAt\": \"2026-06-18T21:00:00.000Z\",\n  \"officialSourceLabel\": \"Federal Reserve statement\",\n  \"officialSourceUrl\": \"https://www.federalreserve.gov/newsevents/pressreleases.htm\",\n  \"resolutionRules\": \"Resolves YES if the Fed announces a rate cut.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/markets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "markets"
+              ]
+            },
+            "description": "Cria um mercado no painel administrativo com regras de resolucao e fonte oficial."
+          },
+          "response": []
+        },
+        {
+          "name": "List Admin Markets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/markets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "markets"
+              ]
+            },
+            "description": "Lista mercados no contexto administrativo."
           },
           "response": []
         }

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { MARKET_OUTCOME_TYPES, MARKET_STATUSES } from "./constants.js";
 
 const marketInclude = {
   rules: true,
@@ -20,7 +21,8 @@ export type MarketAdminRecord = {
   createdAt: Date;
   updatedAt: Date;
   rules: {
-    resolveSource: string;
+    officialSourceLabel: string;
+    officialSourceUrl: string;
     resolutionRules: string;
     createdAt: Date;
     updatedAt: Date;
@@ -37,7 +39,8 @@ export type CreateMarketInput = {
   tickSize?: number;
   openAt?: Date | null;
   closeAt: Date;
-  resolveSource: string;
+  officialSourceLabel: string;
+  officialSourceUrl: string;
   resolutionRules: string;
 };
 
@@ -71,6 +74,18 @@ const toDecimal = (value: Prisma.Decimal | number | string | undefined, fallback
   return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
 };
 
+const assertStatus = (status: string | undefined) => {
+  if (status && !MARKET_STATUSES.includes(status as (typeof MARKET_STATUSES)[number])) {
+    throw new MarketAdminError("Estado de mercado invalido.", 400);
+  }
+};
+
+const assertOutcomeType = (outcomeType: string | undefined) => {
+  if (outcomeType && !MARKET_OUTCOME_TYPES.includes(outcomeType as (typeof MARKET_OUTCOME_TYPES)[number])) {
+    throw new MarketAdminError("Tipo de resultado invalido.", 400);
+  }
+};
+
 const mapMarket = (market: Prisma.MarketGetPayload<{ include: typeof marketInclude }>): MarketAdminRecord => ({
   uuid: market.uuid,
   slug: market.slug,
@@ -85,7 +100,8 @@ const mapMarket = (market: Prisma.MarketGetPayload<{ include: typeof marketInclu
   createdAt: market.createdAt,
   updatedAt: market.updatedAt,
   rules: {
-    resolveSource: market.rules?.resolveSource ?? "",
+    officialSourceLabel: market.rules?.officialSourceLabel ?? "",
+    officialSourceUrl: market.rules?.officialSourceUrl ?? "",
     resolutionRules: market.rules?.resolutionRules ?? "",
     createdAt: market.rules?.createdAt ?? market.createdAt,
     updatedAt: market.rules?.updatedAt ?? market.updatedAt,
@@ -106,6 +122,8 @@ const isUniqueViolation = (error: unknown) =>
 
 export class MarketAdminService implements MarketAdminServiceContract {
   async createMarket(input: CreateMarketInput): Promise<MarketAdminRecord> {
+    assertStatus(input.status);
+    assertOutcomeType(input.outcomeType);
     assertChronology({
       openAt: input.openAt,
       closeAt: input.closeAt,
@@ -125,7 +143,8 @@ export class MarketAdminService implements MarketAdminServiceContract {
           closeAt: input.closeAt,
           rules: {
             create: {
-              resolveSource: input.resolveSource,
+              officialSourceLabel: input.officialSourceLabel,
+              officialSourceUrl: input.officialSourceUrl,
               resolutionRules: input.resolutionRules,
             },
           },
@@ -191,6 +210,8 @@ export class MarketAdminService implements MarketAdminServiceContract {
       throw new MarketAdminError("Mercado nao encontrado.", 404);
     }
 
+    assertStatus(input.status);
+    assertOutcomeType(input.outcomeType);
     const nextOpenAt = input.openAt === undefined ? existingMarket.openAt : input.openAt;
     const nextCloseAt = input.closeAt ?? existingMarket.closeAt;
 
@@ -217,16 +238,20 @@ export class MarketAdminService implements MarketAdminServiceContract {
           tickSize: input.tickSize,
           openAt: nextOpenAt,
           closeAt: nextCloseAt,
-          rules: input.resolveSource || input.resolutionRules
+          rules: input.officialSourceLabel || input.officialSourceUrl || input.resolutionRules
             ? {
                 upsert: {
                   create: {
-                    resolveSource: input.resolveSource ?? existingMarket.rules?.resolveSource ?? "",
+                    officialSourceLabel:
+                      input.officialSourceLabel ?? existingMarket.rules?.officialSourceLabel ?? "",
+                    officialSourceUrl:
+                      input.officialSourceUrl ?? existingMarket.rules?.officialSourceUrl ?? "",
                     resolutionRules:
                       input.resolutionRules ?? existingMarket.rules?.resolutionRules ?? "",
                   },
                   update: {
-                    resolveSource: input.resolveSource,
+                    officialSourceLabel: input.officialSourceLabel,
+                    officialSourceUrl: input.officialSourceUrl,
                     resolutionRules: input.resolutionRules,
                   },
                 },

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
+import { MARKET_OUTCOME_TYPES, MARKET_STATUSES } from "./constants.js";
 import type { MarketAdminServiceContract } from "./service.js";
 import { MarketAdminError, MarketAdminService } from "./service.js";
 
@@ -14,13 +15,14 @@ const createMarketSchema = z.object({
   slug: z.string().trim().min(3).max(120),
   title: z.string().trim().min(3).max(255),
   category: z.string().trim().min(2).max(120),
-  status: z.string().trim().min(2).max(60),
-  outcomeType: z.string().trim().min(2).max(60).optional(),
+  status: z.enum(MARKET_STATUSES),
+  outcomeType: z.enum(MARKET_OUTCOME_TYPES).optional(),
   contractValue: z.union([z.number(), z.string()]).optional(),
   tickSize: z.number().int().positive().optional(),
   openAt: z.coerce.date().nullable().optional(),
   closeAt: z.coerce.date(),
-  resolveSource: z.string().trim().min(3).max(500),
+  officialSourceLabel: z.string().trim().min(3).max(255),
+  officialSourceUrl: z.string().trim().url().max(2048),
   resolutionRules: z.string().trim().min(3).max(5000),
 });
 

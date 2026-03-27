@@ -35,7 +35,8 @@ const marketFixture = {
   updatedAt: new Date("2026-03-27T10:00:00.000Z"),
   rules: {
     marketUuid: "market-uuid",
-    resolveSource: "Federal Reserve statement",
+    officialSourceLabel: "Federal Reserve statement",
+    officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
     resolutionRules: "Resolves YES if the Fed announces a rate cut.",
     createdAt: new Date("2026-03-27T10:00:00.000Z"),
     updatedAt: new Date("2026-03-27T10:00:00.000Z"),
@@ -62,14 +63,16 @@ describe("MarketAdminService", () => {
         status: "draft",
         closeAt: new Date("2026-06-18T21:00:00.000Z"),
         openAt: new Date("2026-06-01T10:00:00.000Z"),
-        resolveSource: "Federal Reserve statement",
+        officialSourceLabel: "Federal Reserve statement",
+        officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
         resolutionRules: "Resolves YES if the Fed announces a rate cut.",
       }),
     ).resolves.toMatchObject({
       uuid: "market-uuid",
       slug: "fed-cuts-rates",
       rules: {
-        resolveSource: "Federal Reserve statement",
+        officialSourceLabel: "Federal Reserve statement",
+        officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
       },
     });
 
@@ -124,10 +127,26 @@ describe("MarketAdminService", () => {
         status: "draft",
         openAt: new Date("2026-06-20T10:00:00.000Z"),
         closeAt: new Date("2026-06-18T21:00:00.000Z"),
-        resolveSource: "Source",
+        officialSourceLabel: "Source",
+        officialSourceUrl: "https://example.com/source",
         resolutionRules: "Rule",
       }),
     ).rejects.toThrowError(new MarketAdminError("A data de abertura deve ser anterior ao fechamento.", 400));
+  });
+
+  it("rejects invalid market state", async () => {
+    await expect(
+      marketAdminService.createMarket({
+        slug: "bad-state-market",
+        title: "Bad state market",
+        category: "macro",
+        status: "invalid_state",
+        closeAt: new Date("2026-06-18T21:00:00.000Z"),
+        officialSourceLabel: "Source",
+        officialSourceUrl: "https://example.com/source",
+        resolutionRules: "Rule",
+      }),
+    ).rejects.toThrowError(new MarketAdminError("Estado de mercado invalido.", 400));
   });
 
   it("deletes a market", async () => {

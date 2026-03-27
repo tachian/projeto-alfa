@@ -202,12 +202,19 @@ Chamadas disponiveis na collection:
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `GET /auth/me`
+- `GET /markets`
+- `GET /markets/:marketUuid`
 - `POST /payments/deposits`
 - `GET /payments/deposits`
 - `POST /payments/withdrawals`
 - `GET /payments/withdrawals`
 - `GET /wallet/balance`
 - `GET /wallet/entries`
+- `GET /admin/markets`
+- `GET /admin/markets/:marketUuid`
+- `POST /admin/markets`
+- `PATCH /admin/markets/:marketUuid`
+- `DELETE /admin/markets/:marketUuid`
 
 Para `POST /payments/deposits` e `POST /payments/withdrawals`, envie o header `Idempotency-Key` quando quiser garantir que retries nao criem pagamentos duplicados.
 
