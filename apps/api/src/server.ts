@@ -3,6 +3,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { appConfig } from "./config.js";
 import { buildAuthRoutes } from "./modules/auth/routes.js";
 import type { AuthServiceContract } from "./modules/auth/service.js";
+import { buildMarketAdminRoutes } from "./modules/markets/routes.js";
+import type { MarketAdminServiceContract } from "./modules/markets/service.js";
 import { buildPaymentRoutes } from "./modules/payments/routes.js";
 import type { PaymentServiceContract } from "./modules/payments/service.js";
 import { buildWalletRoutes } from "./modules/wallet/routes.js";
@@ -14,6 +16,7 @@ import { healthRoutes } from "./routes/health.js";
 type BuildServerOptions = {
   dependenciesPlugin?: FastifyPluginAsync;
   authService?: AuthServiceContract;
+  marketAdminService?: MarketAdminServiceContract;
   paymentService?: PaymentServiceContract;
   walletService?: WalletServiceContract;
 };
@@ -39,6 +42,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(options.dependenciesPlugin ?? dependenciesPluginRegistered);
   await server.register(healthRoutes);
   await server.register(buildAuthRoutes(options.authService));
+  await server.register(buildMarketAdminRoutes(options.marketAdminService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
 
