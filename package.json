@@ -1,0 +1,28 @@
+{
+  "name": "projeto-alfa",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @projeto-alfa/api db:generate",
+    "db:migrate": "pnpm --filter @projeto-alfa/api db:migrate",
+    "db:migrate:dev": "pnpm --filter @projeto-alfa/api db:migrate:dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.23.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.23.0",
+    "globals": "^16.0.0",
+    "tsx": "^4.20.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.28.0",
+    "vitest": "^3.0.9"
+  }
+}

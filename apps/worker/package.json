@@ -1,0 +1,14 @@
+{
+  "name": "@projeto-alfa/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "lint": "eslint src --ext .ts --max-warnings=0",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "clean": "rm -rf dist"
+  }
+}

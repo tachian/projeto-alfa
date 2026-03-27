@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uuid          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  status        String         @default("active")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  refreshTokens RefreshToken[]
+  orders        Order[]
+  accounts      Account[]
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+
+  @@map("users")
+}
+
+model Market {
+  uuid          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String    @unique
+  title         String
+  category      String
+  status        String
+  outcomeType   String    @default("binary") @map("outcome_type")
+  contractValue Decimal   @default(1) @db.Decimal(12, 2) @map("contract_value")
+  tickSize      Int       @default(1) @map("tick_size")
+  openAt        DateTime? @map("open_at")
+  closeAt       DateTime  @map("close_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  orders        Order[]
+  trades        Trade[]
+
+  @@index([status, closeAt])
+  @@map("markets")
+}
+
+model Order {
+  uuid              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userUuid          String    @db.Uuid @map("user_uuid")
+  marketUuid        String    @db.Uuid @map("market_uuid")
+  side              String
+  outcome           String
+  orderType         String    @map("order_type")
+  status            String
+  price             Int
+  quantity          Int
+  remainingQuantity Int       @map("remaining_quantity")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  canceledAt        DateTime? @map("canceled_at")
+  user              User      @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  market            Market    @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
+  buyTrades         Trade[]   @relation("BuyOrderTrades")
+  sellTrades        Trade[]   @relation("SellOrderTrades")
+
+  @@index([marketUuid, status, price, createdAt])
+  @@index([userUuid, createdAt])
+  @@map("orders")
+}
+
+model Trade {
+  uuid          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  marketUuid    String   @db.Uuid @map("market_uuid")
+  buyOrderUuid  String   @db.Uuid @map("buy_order_uuid")
+  sellOrderUuid String   @db.Uuid @map("sell_order_uuid")
+  price         Int
+  quantity      Int
+  feeBuy        Decimal  @default(0) @db.Decimal(12, 2) @map("fee_buy")
+  feeSell       Decimal  @default(0) @db.Decimal(12, 2) @map("fee_sell")
+  executedAt    DateTime @default(now()) @map("executed_at")
+  market        Market   @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
+  buyOrder      Order    @relation("BuyOrderTrades", fields: [buyOrderUuid], references: [uuid], onDelete: Cascade)
+  sellOrder     Order    @relation("SellOrderTrades", fields: [sellOrderUuid], references: [uuid], onDelete: Cascade)
+
+  @@index([marketUuid, executedAt])
+  @@index([buyOrderUuid])
+  @@index([sellOrderUuid])
+  @@map("trades")
+}
+
+model Account {
+  uuid          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userUuid      String?       @db.Uuid @map("user_uuid")
+  accountType   String        @map("account_type")
+  currency      String        @default("USD")
+  status        String        @default("active")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  user          User?         @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+
+  @@index([userUuid])
+  @@unique([userUuid, accountType, currency])
+  @@map("accounts")
+}
+
+model LedgerTransaction {
+  uuid             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionType  String    @map("transaction_type")
+  referenceType    String?   @map("reference_type")
+  referenceUuid    String?   @db.Uuid @map("reference_uuid")
+  description      String?
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  entries          LedgerEntry[]
+  payment          Payment?
+
+  @@index([referenceType, referenceUuid])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  uuid            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transactionUuid String            @db.Uuid @map("transaction_uuid")
+  accountUuid     String            @db.Uuid @map("account_uuid")
+  userUuid        String?           @db.Uuid @map("user_uuid")
+  entryType       String            @map("entry_type")
+  amount          Decimal           @db.Decimal(18, 4)
+  direction       String
+  referenceType   String            @map("reference_type")
+  referenceUuid   String?           @db.Uuid @map("reference_uuid")
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  transaction     LedgerTransaction @relation(fields: [transactionUuid], references: [uuid], onDelete: Cascade)
+  account         Account           @relation(fields: [accountUuid], references: [uuid], onDelete: Cascade)
+  user            User?             @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+
+  @@index([transactionUuid])
+  @@index([accountUuid, createdAt])
+  @@index([userUuid, createdAt])
+  @@index([referenceType, referenceUuid])
+  @@map("ledger_entries")
+}
+
+model Payment {
+  uuid                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userUuid              String             @db.Uuid @map("user_uuid")
+  type                  String
+  status                String
+  provider              String
+  idempotencyKey        String?            @map("idempotency_key")
+  amount                Decimal            @db.Decimal(18, 4)
+  currency              String             @default("USD")
+  description           String?
+  metadata              Json?
+  ledgerTransactionUuid String?            @unique @db.Uuid @map("ledger_transaction_uuid")
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  processedAt           DateTime?          @map("processed_at")
+  user                  User               @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  ledgerTransaction     LedgerTransaction? @relation(fields: [ledgerTransactionUuid], references: [uuid], onDelete: SetNull)
+
+  @@index([userUuid, type, createdAt])
+  @@index([status, createdAt])
+  @@unique([userUuid, type, idempotencyKey])
+  @@map("payments")
+}
+
+model RefreshToken {
+  uuid       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  userUuid   String    @db.Uuid @map("user_uuid")
+  user       User      @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+
+  @@index([userUuid])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  uuid        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requestUuid String?   @db.Uuid @map("request_uuid")
+  actorType   String    @map("actor_type")
+  actorUuid   String?   @db.Uuid @map("actor_uuid")
+  action      String
+  targetType  String    @map("target_type")
+  targetUuid  String?   @db.Uuid @map("target_uuid")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  payload     Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
