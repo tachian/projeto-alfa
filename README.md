@@ -218,6 +218,19 @@ Chamadas disponiveis na collection:
 
 Para `POST /payments/deposits` e `POST /payments/withdrawals`, envie o header `Idempotency-Key` quando quiser garantir que retries nao criem pagamentos duplicados.
 
+O endpoint `GET /markets` aceita filtros opcionais por:
+
+- `status`
+- `category`
+- `closeAtFrom`
+- `closeAtTo`
+
+Exemplo:
+
+```text
+GET /markets?status=open&category=macro&closeAtFrom=2026-06-01T00:00:00.000Z&closeAtTo=2026-06-30T23:59:59.000Z
+```
+
 ## CI/CD
 
 GitHub Actions configurado em:

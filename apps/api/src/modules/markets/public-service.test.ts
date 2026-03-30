@@ -50,6 +50,8 @@ describe("MarketCatalogService", () => {
       marketCatalogService.listMarkets({
         status: "open",
         category: "macro",
+        closeAtFrom: new Date("2026-06-01T00:00:00.000Z"),
+        closeAtTo: new Date("2026-06-30T23:59:59.000Z"),
       }),
     ).resolves.toMatchObject([
       {
@@ -60,6 +62,17 @@ describe("MarketCatalogService", () => {
         },
       },
     ]);
+  });
+
+  it("rejects invalid closing date range", async () => {
+    await expect(
+      marketCatalogService.listMarkets({
+        closeAtFrom: new Date("2026-07-01T00:00:00.000Z"),
+        closeAtTo: new Date("2026-06-01T00:00:00.000Z"),
+      }),
+    ).rejects.toThrowError(
+      new MarketCatalogError("A data inicial de vencimento deve ser anterior a data final.", 400),
+    );
   });
 
   it("returns a single public market by uuid", async () => {

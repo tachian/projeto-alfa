@@ -30,6 +30,8 @@ export type PublicMarketRecord = {
 export type ListPublicMarketsInput = {
   status?: string;
   category?: string;
+  closeAtFrom?: Date;
+  closeAtTo?: Date;
 };
 
 export interface MarketCatalogServiceContract {
@@ -71,10 +73,20 @@ const mapMarket = (market: Prisma.MarketGetPayload<{ include: typeof marketInclu
 
 export class MarketCatalogService implements MarketCatalogServiceContract {
   async listMarkets(input: ListPublicMarketsInput = {}): Promise<PublicMarketRecord[]> {
+    if (input.closeAtFrom && input.closeAtTo && input.closeAtFrom > input.closeAtTo) {
+      throw new MarketCatalogError("A data inicial de vencimento deve ser anterior a data final.", 400);
+    }
+
     const markets = await prisma.market.findMany({
       where: {
         status: input.status,
         category: input.category,
+        closeAt: input.closeAtFrom || input.closeAtTo
+          ? {
+              gte: input.closeAtFrom,
+              lte: input.closeAtTo,
+            }
+          : undefined,
       },
       include: marketInclude,
       orderBy: [

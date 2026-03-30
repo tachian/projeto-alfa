@@ -74,10 +74,16 @@ describe("market catalog routes", () => {
 
     const response = await server.inject({
       method: "GET",
-      url: "/markets?status=open&category=macro",
+      url: "/markets?status=open&category=macro&closeAtFrom=2026-06-01T00:00:00.000Z&closeAtTo=2026-06-30T23:59:59.000Z",
     });
 
     expect(response.statusCode).toBe(200);
+    expect(vi.mocked(marketCatalogService.listMarkets)).toHaveBeenCalledWith({
+      status: "open",
+      category: "macro",
+      closeAtFrom: new Date("2026-06-01T00:00:00.000Z"),
+      closeAtTo: new Date("2026-06-30T23:59:59.000Z"),
+    });
     expect(response.json()).toMatchObject({
       items: [
         {

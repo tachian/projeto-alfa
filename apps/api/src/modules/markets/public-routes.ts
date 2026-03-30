@@ -6,6 +6,8 @@ import { MarketCatalogError, MarketCatalogService } from "./public-service.js";
 const listMarketsQuerySchema = z.object({
   status: z.string().trim().min(2).max(60).optional(),
   category: z.string().trim().min(2).max(120).optional(),
+  closeAtFrom: z.coerce.date().optional(),
+  closeAtTo: z.coerce.date().optional(),
 });
 
 const marketUuidParamSchema = z.object({

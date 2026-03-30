@@ -321,7 +321,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/markets?status=open&category=macro",
+              "raw": "{{baseUrl}}/markets?status=open&category=macro&closeAtFrom=2026-06-01T00:00:00.000Z&closeAtTo=2026-06-30T23:59:59.000Z",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -336,10 +336,18 @@
                 {
                   "key": "category",
                   "value": "macro"
+                },
+                {
+                  "key": "closeAtFrom",
+                  "value": "2026-06-01T00:00:00.000Z"
+                },
+                {
+                  "key": "closeAtTo",
+                  "value": "2026-06-30T23:59:59.000Z"
                 }
               ]
             },
-            "description": "Lista mercados publicos com filtros opcionais por estado e categoria."
+            "description": "Lista mercados publicos com filtros opcionais por estado, categoria e faixa de vencimento."
           },
           "response": []
         },
