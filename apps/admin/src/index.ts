@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderMarketPage } from "./market-page.js";
@@ -51,7 +52,14 @@ const proxyApiRequest = async (input: {
   }
 };
 
-const server = createServer(async (request, response) => {
+export const createAdminServer = () => createServer(async (request, response) => {
+  return handleAdminRequest(request, response);
+});
+
+export const handleAdminRequest = async (
+  request: IncomingMessage,
+  response: ServerResponse<IncomingMessage>,
+) => {
   const requestUrl = new URL(request.url ?? "/", adminConfig.APP_URL);
   const pathname = requestUrl.pathname;
 
@@ -142,8 +150,18 @@ const server = createServer(async (request, response) => {
     "content-type": "application/json; charset=utf-8",
   });
   response.end(JSON.stringify({ message: "Rota nao encontrada." }));
-});
+};
 
-server.listen(adminConfig.PORT, () => {
-  console.log(`[bootstrap] ${adminConfig.APP_NAME} ready at ${adminConfig.APP_URL}`);
-});
+export const startAdminServer = () => {
+  const server = createAdminServer();
+
+  server.listen(adminConfig.PORT, () => {
+    console.log(`[bootstrap] ${adminConfig.APP_NAME} ready at ${adminConfig.APP_URL}`);
+  });
+
+  return server;
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  startAdminServer();
+}
