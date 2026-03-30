@@ -1,10 +1,4 @@
-const escapeHtml = (value: string) =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+import { escapeHtml } from "./html.js";
 
 export const renderMarketPage = (input: {
   appName: string;
@@ -232,6 +226,85 @@ export const renderMarketPage = (input: {
         }
       }
 
+      .admin-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      textarea, input, button {
+        font: inherit;
+      }
+
+      textarea, input {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border: 1px solid rgba(76, 51, 24, 0.12);
+        background: rgba(255, 255, 255, 0.78);
+        color: var(--ink);
+      }
+
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+        padding: 11px 16px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: white;
+        font-weight: 600;
+      }
+
+      button.warning {
+        background: #b7791f;
+      }
+
+      button.secondary {
+        background: rgba(27, 21, 16, 0.08);
+        color: var(--ink);
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .form-grid.two {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .field-label {
+        display: grid;
+        gap: 8px;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+
+      .admin-status {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        background: rgba(177, 77, 45, 0.1);
+        color: var(--accent);
+      }
+
+      .admin-status[data-tone="success"] {
+        background: rgba(39, 103, 73, 0.12);
+        color: var(--success);
+      }
+
+      .admin-status[data-tone="danger"] {
+        background: rgba(154, 44, 26, 0.12);
+        color: #7f2d18;
+      }
+
       @media (max-width: 860px) {
         .grid {
           grid-template-columns: 1fr;
@@ -246,6 +319,10 @@ export const renderMarketPage = (input: {
         }
 
         .meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .form-grid.two {
           grid-template-columns: 1fr;
         }
       }
@@ -295,6 +372,11 @@ export const renderMarketPage = (input: {
             <p class="section-copy" id="market-contract-copy">
               Cada contrato liquida conforme as regras oficiais abaixo.
             </p>
+            <div class="admin-toolbar">
+              <button type="button" id="save-token" class="secondary">Salvar token</button>
+              <button type="button" id="suspend-market">Suspender</button>
+              <button type="button" id="close-market" class="warning">Fechar</button>
+            </div>
           </div>
         </aside>
 
@@ -313,6 +395,48 @@ export const renderMarketPage = (input: {
 
         <article class="panel">
           <div class="panel-body">
+            <div class="eyebrow">Operacao</div>
+            <h2>Editar mercado</h2>
+            <p class="section-copy">A ficha publica continua visivel, mas aqui voce tambem pode ajustar o cadastro administrativo e trocar o estado do mercado.</p>
+            <div class="form-grid">
+              <label class="field-label">
+                Bearer token
+                <textarea id="auth-token" placeholder="Cole aqui o access token do admin"></textarea>
+              </label>
+            </div>
+            <form id="market-form" class="form-grid">
+              <label class="field-label">Titulo<input name="title" required /></label>
+              <div class="form-grid two">
+                <label class="field-label">Slug<input name="slug" required /></label>
+                <label class="field-label">Categoria<input name="category" required /></label>
+              </div>
+              <div class="form-grid two">
+                <label class="field-label">Status
+                  <input name="status" required />
+                </label>
+                <label class="field-label">Tipo
+                  <input name="outcomeType" required />
+                </label>
+              </div>
+              <div class="form-grid two">
+                <label class="field-label">Tick size<input name="tickSize" type="number" min="1" step="1" required /></label>
+                <label class="field-label">Valor do contrato<input name="contractValue" type="number" min="0.01" step="0.01" required /></label>
+              </div>
+              <div class="form-grid two">
+                <label class="field-label">Abre em<input name="openAt" type="datetime-local" /></label>
+                <label class="field-label">Fecha em<input name="closeAt" type="datetime-local" required /></label>
+              </div>
+              <label class="field-label">Fonte oficial<input name="officialSourceLabel" required /></label>
+              <label class="field-label">URL da fonte oficial<input name="officialSourceUrl" type="url" required /></label>
+              <label class="field-label">Regras de resolucao<textarea name="resolutionRules" required></textarea></label>
+              <button type="submit" id="save-market">Salvar alteracoes</button>
+            </form>
+            <div id="admin-status" class="admin-status">Cole um token valido para editar, suspender ou fechar este mercado.</div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-body">
             <div class="eyebrow">Regras</div>
             <h2>Como este mercado resolve</h2>
             <p class="section-copy" id="market-rules">-</p>
@@ -323,6 +447,7 @@ export const renderMarketPage = (input: {
 
     <script>
       const marketUuid = ${JSON.stringify(input.marketUuid)};
+      const tokenStorageKey = "projeto-alfa.admin.token";
       const formatDate = (value) => {
         if (!value) return "Nao definido";
         return new Intl.DateTimeFormat("pt-BR", {
@@ -331,10 +456,55 @@ export const renderMarketPage = (input: {
         }).format(new Date(value));
       };
 
+      const toDatetimeLocal = (value) => {
+        if (!value) return "";
+        const date = new Date(value);
+        const offset = date.getTimezoneOffset();
+        const local = new Date(date.getTime() - offset * 60000);
+        return local.toISOString().slice(0, 16);
+      };
+
       const setError = (message) => {
         const state = document.getElementById("market-state");
         state.className = "error-card";
         state.textContent = message;
+      };
+
+      const setAdminStatus = (message, tone = "default") => {
+        const node = document.getElementById("admin-status");
+        node.textContent = message;
+        node.dataset.tone = tone;
+      };
+
+      const getToken = () => document.getElementById("auth-token").value.trim();
+      const getHeaders = () => {
+        const token = getToken();
+        return token ? { Authorization: "Bearer " + token } : {};
+      };
+
+      const saveToken = () => {
+        localStorage.setItem(tokenStorageKey, getToken());
+        setAdminStatus("Token salvo no navegador.", "success");
+      };
+
+      const fetchJson = async (url, options = {}) => {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...getHeaders(),
+            ...(options.headers ?? {}),
+          },
+        });
+
+        const payloadText = await response.text();
+        const payload = payloadText ? JSON.parse(payloadText) : null;
+
+        if (!response.ok) {
+          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
+        }
+
+        return payload;
       };
 
       const fillMarket = (market) => {
@@ -358,20 +528,83 @@ export const renderMarketPage = (input: {
         statusPill.textContent = market.status;
         statusPill.dataset.status = market.status;
 
+        const form = document.getElementById("market-form");
+        form.elements.title.value = market.title;
+        form.elements.slug.value = market.slug;
+        form.elements.category.value = market.category;
+        form.elements.status.value = market.status;
+        form.elements.outcomeType.value = market.outcomeType;
+        form.elements.tickSize.value = String(market.tickSize);
+        form.elements.contractValue.value = market.contractValue;
+        form.elements.openAt.value = toDatetimeLocal(market.openAt);
+        form.elements.closeAt.value = toDatetimeLocal(market.closeAt);
+        form.elements.officialSourceLabel.value = market.rules.officialSourceLabel;
+        form.elements.officialSourceUrl.value = market.rules.officialSourceUrl;
+        form.elements.resolutionRules.value = market.rules.resolutionRules;
+
         document.getElementById("market-state").hidden = true;
         document.getElementById("market-layout").hidden = false;
       };
 
-      fetch("/api/markets/" + marketUuid)
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error("Nao foi possivel carregar o mercado.");
-          }
+      const loadMarket = () =>
+        fetch("/api/markets/" + marketUuid)
+          .then(async (response) => {
+            if (!response.ok) {
+              throw new Error("Nao foi possivel carregar o mercado.");
+            }
 
-          return response.json();
-        })
-        .then((payload) => fillMarket(payload.market))
-        .catch((error) => setError(error.message));
+            return response.json();
+          })
+          .then((payload) => fillMarket(payload.market))
+          .catch((error) => setError(error.message));
+
+      const submitUpdate = async (override = {}) => {
+        const form = document.getElementById("market-form");
+        const formData = new FormData(form);
+        const payload = {
+          title: String(formData.get("title") ?? "").trim(),
+          slug: String(formData.get("slug") ?? "").trim(),
+          category: String(formData.get("category") ?? "").trim(),
+          status: String(formData.get("status") ?? "").trim(),
+          outcomeType: String(formData.get("outcomeType") ?? "").trim(),
+          tickSize: Number(formData.get("tickSize") ?? 1),
+          contractValue: String(formData.get("contractValue") ?? "1").trim(),
+          openAt: formData.get("openAt") ? new Date(String(formData.get("openAt"))).toISOString() : null,
+          closeAt: new Date(String(formData.get("closeAt"))).toISOString(),
+          officialSourceLabel: String(formData.get("officialSourceLabel") ?? "").trim(),
+          officialSourceUrl: String(formData.get("officialSourceUrl") ?? "").trim(),
+          resolutionRules: String(formData.get("resolutionRules") ?? "").trim(),
+          ...override,
+        };
+
+        setAdminStatus("Salvando alteracoes...");
+
+        try {
+          const result = await fetchJson("/api/admin/markets/" + marketUuid, {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          fillMarket(result.market);
+          setAdminStatus("Mercado atualizado com sucesso.", "success");
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+        }
+      };
+
+      document.getElementById("auth-token").value = localStorage.getItem(tokenStorageKey) ?? "";
+      document.getElementById("save-token").addEventListener("click", saveToken);
+      document.getElementById("market-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await submitUpdate();
+      });
+      document.getElementById("suspend-market").addEventListener("click", async () => {
+        await submitUpdate({ status: "suspended" });
+      });
+      document.getElementById("close-market").addEventListener("click", async () => {
+        await submitUpdate({ status: "closed" });
+      });
+
+      loadMarket();
     </script>
   </body>
 </html>`;

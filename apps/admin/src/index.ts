@@ -1,6 +1,55 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
+import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderMarketPage } from "./market-page.js";
+
+const readJsonBody = async (request: IncomingMessage) => {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  if (!chunks.length) {
+    return null;
+  }
+
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+};
+
+const proxyApiRequest = async (input: {
+  request: IncomingMessage;
+  response: ServerResponse<IncomingMessage>;
+  path: string;
+  method: string;
+  body?: unknown;
+}) => {
+  try {
+    const authorization = input.request.headers.authorization;
+    const upstreamResponse = await fetch(new URL(input.path, adminConfig.ADMIN_API_URL), {
+      method: input.method,
+      headers: {
+        ...(authorization ? { Authorization: authorization } : {}),
+        ...(input.body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: input.body ? JSON.stringify(input.body) : undefined,
+    });
+
+    const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+    const payload = await upstreamResponse.text();
+
+    input.response.writeHead(upstreamResponse.status, {
+      "content-type": contentType,
+    });
+    input.response.end(payload);
+  } catch {
+    input.response.writeHead(502, {
+      "content-type": "application/json; charset=utf-8",
+    });
+    input.response.end(JSON.stringify({ message: "Falha ao consultar a API administrativa." }));
+  }
+};
 
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url ?? "/", adminConfig.APP_URL);
@@ -10,53 +59,11 @@ const server = createServer(async (request, response) => {
     response.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
     });
-    response.end(`<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${adminConfig.APP_NAME}</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 24px;
-        background: linear-gradient(180deg, #fbf3e8 0%, #f2e1ca 100%);
-        color: #1b1510;
-        font-family: "Avenir Next", "Segoe UI", sans-serif;
-      }
-      main {
-        width: min(760px, 100%);
-        padding: 28px;
-        border-radius: 24px;
-        background: rgba(255, 251, 245, 0.88);
-        border: 1px solid rgba(70, 43, 18, 0.12);
-      }
-      h1 {
-        margin: 0 0 12px;
-        font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-        font-size: clamp(2rem, 5vw, 3.5rem);
-      }
-      p {
-        color: #6d5f4f;
-        line-height: 1.7;
-      }
-      code {
-        padding: 2px 6px;
-        border-radius: 999px;
-        background: rgba(177, 77, 45, 0.1);
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>Painel pronto para mercados</h1>
-      <p>Abra uma pagina de mercado em <code>/markets/:marketUuid</code> para visualizar a ficha publica com estado, fonte oficial e regras de resolucao.</p>
-    </main>
-  </body>
-</html>`);
+    response.end(
+      renderAdminDashboardPage({
+        appName: adminConfig.APP_NAME,
+      }),
+    );
     return;
   }
 
@@ -103,6 +110,31 @@ const server = createServer(async (request, response) => {
       });
       response.end(JSON.stringify({ message: "Falha ao consultar a API de mercados." }));
     }
+    return;
+  }
+
+  if (pathname === "/api/admin/markets" && (request.method === "GET" || request.method === "POST")) {
+    const body = request.method === "POST" ? await readJsonBody(request) : undefined;
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/admin/markets",
+      method: request.method,
+      body,
+    });
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/markets/") && ["GET", "PATCH"].includes(request.method ?? "")) {
+    const marketUuid = pathname.replace("/api/admin/markets/", "").trim();
+    const body = request.method === "PATCH" ? await readJsonBody(request) : undefined;
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/admin/markets/${marketUuid}`,
+      method: request.method ?? "GET",
+      body,
+    });
     return;
   }
 
