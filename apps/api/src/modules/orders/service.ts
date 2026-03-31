@@ -1,5 +1,7 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { LedgerError, LedgerService } from "../ledger/service.js";
 
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
@@ -162,6 +164,8 @@ const assertMarketCanReceiveOrders = (market: {
 };
 
 export class OrderService implements OrderServiceContract {
+  constructor(private readonly ledgerService = new LedgerService()) {}
+
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     const normalizedOrderType = input.orderType ?? "limit";
 
@@ -183,45 +187,115 @@ export class OrderService implements OrderServiceContract {
 
     assertMarketCanReceiveOrders(market);
 
-    const order = await prisma.order.create({
-      data: {
-        userUuid: input.userUuid,
-        marketUuid: input.marketUuid,
-        side: input.side,
-        outcome: input.outcome,
-        orderType: normalizedOrderType,
-        status: "open",
-        price: input.price,
-        quantity: input.quantity,
-        remainingQuantity: input.quantity,
-      },
-      include: {
-        market: {
-          select: {
-            uuid: true,
-            slug: true,
-            title: true,
-            status: true,
-            closeAt: true,
+    try {
+      const order = await prisma.$transaction(async (tx) => {
+        const accounts = await this.ledgerService.ensureUserAccounts(
+          {
+            userUuid: input.userUuid,
           },
+          tx,
+        );
+        const availableBalance = await this.ledgerService.getAccountBalance(accounts.available.uuid, tx);
+        const reserveAmount = this.calculateReserveAmount({
+          side: input.side,
+          price: input.price,
+          quantity: input.quantity,
+        });
+        const availableAmount = new Prisma.Decimal(availableBalance.available);
+
+        if (availableAmount.lt(reserveAmount)) {
+          throw new OrderError("Saldo insuficiente para reservar a ordem.", 400);
+        }
+
+        const createdOrder = await tx.order.create({
+          data: {
+            userUuid: input.userUuid,
+            marketUuid: input.marketUuid,
+            side: input.side,
+            outcome: input.outcome,
+            orderType: normalizedOrderType,
+            status: "open",
+            price: input.price,
+            quantity: input.quantity,
+            remainingQuantity: input.quantity,
+          },
+          include: {
+            market: {
+              select: {
+                uuid: true,
+                slug: true,
+                title: true,
+                status: true,
+                closeAt: true,
+              },
+            },
+          },
+        });
+
+        await this.ledgerService.postTransaction(
+          {
+            transactionType: "order_reserve",
+            referenceType: "order",
+            referenceUuid: createdOrder.uuid,
+            description: "Order collateral reserved",
+            metadata: {
+              marketUuid: createdOrder.marketUuid,
+              side: createdOrder.side,
+              outcome: createdOrder.outcome,
+              price: createdOrder.price,
+              quantity: createdOrder.quantity,
+            },
+            entries: [
+              {
+                accountUuid: accounts.available.uuid,
+                userUuid: input.userUuid,
+                entryType: "order_reserved",
+                amount: reserveAmount,
+                direction: "debit",
+                referenceType: "order",
+                referenceUuid: createdOrder.uuid,
+              },
+              {
+                accountUuid: accounts.reserved.uuid,
+                userUuid: input.userUuid,
+                entryType: "order_reserved",
+                amount: reserveAmount,
+                direction: "credit",
+                referenceType: "order",
+                referenceUuid: createdOrder.uuid,
+              },
+            ],
+          },
+          {
+            dbClient: tx,
+            skipAuditLog: true,
+          },
+        );
+
+        return createdOrder;
+      });
+
+      await writeAuditLog({
+        action: "orders.created",
+        targetType: "order",
+        targetUuid: order.uuid,
+        payload: {
+          marketUuid: order.marketUuid,
+          side: order.side,
+          outcome: order.outcome,
+          price: order.price,
+          quantity: order.quantity,
         },
-      },
-    });
+      });
 
-    await writeAuditLog({
-      action: "orders.created",
-      targetType: "order",
-      targetUuid: order.uuid,
-      payload: {
-        marketUuid: order.marketUuid,
-        side: order.side,
-        outcome: order.outcome,
-        price: order.price,
-        quantity: order.quantity,
-      },
-    });
+      return mapOrder(order);
+    } catch (error) {
+      if (error instanceof LedgerError || error instanceof OrderError) {
+        throw error;
+      }
 
-    return mapOrder(order);
+      throw error;
+    }
   }
 
   async listOrders(input: ListOrdersInput): Promise<ListOrdersResult> {
@@ -289,25 +363,83 @@ export class OrderService implements OrderServiceContract {
       throw new OrderError("A ordem nao pode mais ser cancelada.", 400);
     }
 
-    const canceledOrder = await prisma.order.update({
-      where: {
-        uuid: existingOrder.uuid,
-      },
-      data: {
-        status: "cancelled",
-        canceledAt: new Date(),
-      },
-      include: {
-        market: {
-          select: {
-            uuid: true,
-            slug: true,
-            title: true,
-            status: true,
-            closeAt: true,
+    const canceledOrder = await prisma.$transaction(async (tx) => {
+      const accounts = await this.ledgerService.ensureUserAccounts(
+        {
+          userUuid: input.userUuid,
+        },
+        tx,
+      );
+      const reserveAmount = this.calculateReserveAmount({
+        side: existingOrder.side,
+        price: existingOrder.price,
+        quantity: existingOrder.remainingQuantity,
+      });
+
+      const updatedOrder = await tx.order.update({
+        where: {
+          uuid: existingOrder.uuid,
+        },
+        data: {
+          status: "cancelled",
+          canceledAt: new Date(),
+        },
+        include: {
+          market: {
+            select: {
+              uuid: true,
+              slug: true,
+              title: true,
+              status: true,
+              closeAt: true,
+            },
           },
         },
-      },
+      });
+
+      if (reserveAmount.gt(new Prisma.Decimal(0))) {
+        await this.ledgerService.postTransaction(
+          {
+            transactionType: "order_release",
+            referenceType: "order",
+            referenceUuid: updatedOrder.uuid,
+            description: "Order collateral released",
+            metadata: {
+              marketUuid: updatedOrder.marketUuid,
+              side: updatedOrder.side,
+              outcome: updatedOrder.outcome,
+              price: updatedOrder.price,
+              quantity: updatedOrder.remainingQuantity,
+            },
+            entries: [
+              {
+                accountUuid: accounts.reserved.uuid,
+                userUuid: input.userUuid,
+                entryType: "order_released",
+                amount: reserveAmount,
+                direction: "debit",
+                referenceType: "order",
+                referenceUuid: updatedOrder.uuid,
+              },
+              {
+                accountUuid: accounts.available.uuid,
+                userUuid: input.userUuid,
+                entryType: "order_released",
+                amount: reserveAmount,
+                direction: "credit",
+                referenceType: "order",
+                referenceUuid: updatedOrder.uuid,
+              },
+            ],
+          },
+          {
+            dbClient: tx,
+            skipAuditLog: true,
+          },
+        );
+      }
+
+      return updatedOrder;
     });
 
     await writeAuditLog({
@@ -321,5 +453,14 @@ export class OrderService implements OrderServiceContract {
     });
 
     return mapOrder(canceledOrder);
+  }
+
+  private calculateReserveAmount(input: {
+    side: string;
+    price: number;
+    quantity: number;
+  }) {
+    const centsPerContract = input.side === "buy" ? input.price : 100 - input.price;
+    return new Prisma.Decimal(centsPerContract).mul(input.quantity).div(100);
   }
 }

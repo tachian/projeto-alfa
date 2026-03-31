@@ -1,6 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { LedgerService } from "../ledger/service.js";
 import { OrderError, OrderService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -9,11 +11,10 @@ vi.mock("../../lib/prisma.js", () => ({
       findUnique: vi.fn(),
     },
     order: {
-      create: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
-      update: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -59,17 +60,56 @@ const orderFixture = {
 };
 
 describe("OrderService", () => {
-  const orderService = new OrderService();
+  const mockedLedgerService = {
+    ensureUserAccounts: vi.fn(),
+    getAccountBalance: vi.fn(),
+    postTransaction: vi.fn(),
+  } as unknown as LedgerService;
+
+  const orderService = new OrderService(mockedLedgerService);
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
+  const transactionClient = {
+    account: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+    ledgerEntry: {
+      groupBy: vi.fn(),
+      create: vi.fn(),
+    },
+    ledgerTransaction: {
+      create: vi.fn(),
+    },
+    order: {
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedPrisma.$transaction.mockImplementation(async (callback) => callback(transactionClient as never));
+    vi.mocked(mockedLedgerService.ensureUserAccounts).mockResolvedValue({
+      available: { uuid: "available-uuid" },
+      reserved: { uuid: "reserved-uuid" },
+    } as never);
+    vi.mocked(mockedLedgerService.getAccountBalance).mockResolvedValue({
+      accountUuid: "available-uuid",
+      currency: "USD",
+      available: "100.0000",
+    });
+    vi.mocked(mockedLedgerService.postTransaction).mockResolvedValue({
+      transaction: { uuid: "ledger-tx-uuid" },
+      entries: [],
+    } as never);
   });
 
-  it("creates an order for an open market", async () => {
+  it("creates an order for an open market and reserves funds", async () => {
     mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
-    mockedPrisma.order.create.mockResolvedValue(orderFixture as never);
+    transactionClient.order.create.mockResolvedValue(orderFixture as never);
 
     await expect(
       orderService.createOrder({
@@ -88,6 +128,28 @@ describe("OrderService", () => {
       },
     });
 
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionType: "order_reserve",
+        referenceType: "order",
+        referenceUuid: orderFixture.uuid,
+        entries: [
+          expect.objectContaining({
+            accountUuid: "available-uuid",
+            direction: "debit",
+            amount: new Prisma.Decimal("5.5"),
+          }),
+          expect.objectContaining({
+            accountUuid: "reserved-uuid",
+            direction: "credit",
+            amount: new Prisma.Decimal("5.5"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        skipAuditLog: true,
+      }),
+    );
     expect(mockedWriteAuditLog).toHaveBeenCalledWith({
       action: "orders.created",
       targetType: "order",
@@ -122,9 +184,9 @@ describe("OrderService", () => {
     });
   });
 
-  it("cancels an open order", async () => {
+  it("cancels an open order and releases reserved funds", async () => {
     mockedPrisma.order.findUnique.mockResolvedValue(orderFixture as never);
-    mockedPrisma.order.update.mockResolvedValue({
+    transactionClient.order.update.mockResolvedValue({
       ...orderFixture,
       status: "cancelled",
       canceledAt: new Date("2026-03-30T11:00:00.000Z"),
@@ -139,6 +201,29 @@ describe("OrderService", () => {
       uuid: orderFixture.uuid,
       status: "cancelled",
     });
+
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionType: "order_release",
+        referenceType: "order",
+        referenceUuid: orderFixture.uuid,
+        entries: [
+          expect.objectContaining({
+            accountUuid: "reserved-uuid",
+            direction: "debit",
+            amount: new Prisma.Decimal("5.5"),
+          }),
+          expect.objectContaining({
+            accountUuid: "available-uuid",
+            direction: "credit",
+            amount: new Prisma.Decimal("5.5"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        skipAuditLog: true,
+      }),
+    );
   });
 
   it("rejects orders for closed markets", async () => {
@@ -157,6 +242,26 @@ describe("OrderService", () => {
         quantity: 10,
       }),
     ).rejects.toThrowError(new OrderError("O mercado nao esta aberto para negociacao.", 400));
+  });
+
+  it("rejects order creation when available balance is insufficient", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
+    vi.mocked(mockedLedgerService.getAccountBalance).mockResolvedValue({
+      accountUuid: "available-uuid",
+      currency: "USD",
+      available: "1.0000",
+    });
+
+    await expect(
+      orderService.createOrder({
+        userUuid: "user-uuid",
+        marketUuid: marketFixture.uuid,
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      }),
+    ).rejects.toThrowError(new OrderError("Saldo insuficiente para reservar a ordem.", 400));
   });
 
   it("rejects canceling an order from another user", async () => {
