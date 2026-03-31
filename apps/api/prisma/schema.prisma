@@ -53,6 +53,7 @@ model Position {
   outcome           String
   netQuantity       Int      @default(0) @map("net_quantity")
   averageEntryPrice Decimal  @default(0) @db.Decimal(12, 4) @map("average_entry_price")
+  realizedPnl       Decimal  @default(0) @db.Decimal(18, 4) @map("realized_pnl")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   user              User     @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)

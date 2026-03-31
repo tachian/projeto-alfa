@@ -11,6 +11,8 @@ import { buildOrderRoutes } from "./modules/orders/routes.js";
 import type { OrderServiceContract } from "./modules/orders/service.js";
 import { buildPaymentRoutes } from "./modules/payments/routes.js";
 import type { PaymentServiceContract } from "./modules/payments/service.js";
+import { buildPortfolioRoutes } from "./modules/portfolio/routes.js";
+import type { PortfolioServiceContract } from "./modules/portfolio/service.js";
 import { realtimeHub } from "./modules/realtime/hub.js";
 import { buildWalletRoutes } from "./modules/wallet/routes.js";
 import type { WalletServiceContract } from "./modules/wallet/service.js";
@@ -25,6 +27,7 @@ type BuildServerOptions = {
   marketAdminService?: MarketAdminServiceContract;
   orderService?: OrderServiceContract;
   paymentService?: PaymentServiceContract;
+  portfolioService?: PortfolioServiceContract;
   walletService?: WalletServiceContract;
 };
 
@@ -53,6 +56,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(buildMarketAdminRoutes(options.marketAdminService, options.authService));
   await server.register(buildOrderRoutes(options.orderService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));
+  await server.register(buildPortfolioRoutes(options.portfolioService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
   realtimeHub.attach(server.server);
 

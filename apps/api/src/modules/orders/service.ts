@@ -169,6 +169,7 @@ const assertMarketCanReceiveOrders = (market: {
 const getFilledStatus = (remainingQuantity: number) => (remainingQuantity === 0 ? "filled" : "partially_filled");
 
 const ZERO_DECIMAL = new Prisma.Decimal(0);
+const CENTS_IN_DOLLAR = new Prisma.Decimal(100);
 
 export class OrderService implements OrderServiceContract {
   constructor(
@@ -785,6 +786,7 @@ export class OrderService implements OrderServiceContract {
           outcome: input.outcome,
           netQuantity: input.quantityDelta,
           averageEntryPrice: new Prisma.Decimal(input.executionPrice),
+          realizedPnl: ZERO_DECIMAL,
         },
       });
     }
@@ -793,8 +795,20 @@ export class OrderService implements OrderServiceContract {
     const nextNetQuantity = currentNetQuantity + input.quantityDelta;
     const currentPrice = new Prisma.Decimal(existingPosition.averageEntryPrice);
     const executionPrice = new Prisma.Decimal(input.executionPrice);
+    let nextRealizedPnl = new Prisma.Decimal(existingPosition.realizedPnl);
 
     let nextAverageEntryPrice = currentPrice;
+
+    if (currentNetQuantity !== 0 && Math.sign(currentNetQuantity) !== Math.sign(input.quantityDelta)) {
+      const closingQuantity = Math.min(Math.abs(currentNetQuantity), Math.abs(input.quantityDelta));
+
+      if (closingQuantity > 0) {
+        const realizedPerContract =
+          currentNetQuantity > 0 ? executionPrice.minus(currentPrice) : currentPrice.minus(executionPrice);
+        const realizedDelta = realizedPerContract.mul(closingQuantity).div(CENTS_IN_DOLLAR);
+        nextRealizedPnl = nextRealizedPnl.plus(realizedDelta);
+      }
+    }
 
     if (nextNetQuantity === 0) {
       nextAverageEntryPrice = ZERO_DECIMAL;
@@ -819,6 +833,7 @@ export class OrderService implements OrderServiceContract {
       data: {
         netQuantity: nextNetQuantity,
         averageEntryPrice: nextAverageEntryPrice,
+        realizedPnl: nextRealizedPnl,
       },
     });
   }

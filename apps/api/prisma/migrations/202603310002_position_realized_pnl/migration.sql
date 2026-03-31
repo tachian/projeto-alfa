@@ -1,0 +1,2 @@
+ALTER TABLE "positions"
+ADD COLUMN "realized_pnl" DECIMAL(18,4) NOT NULL DEFAULT 0;

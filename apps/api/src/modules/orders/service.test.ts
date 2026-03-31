@@ -130,9 +130,11 @@ describe("OrderService", () => {
     transactionClient.position.findUnique.mockResolvedValue(null as never);
     transactionClient.position.create.mockResolvedValue({
       uuid: "position-uuid",
+      realizedPnl: new Prisma.Decimal(0),
     } as never);
     transactionClient.position.update.mockResolvedValue({
       uuid: "position-uuid",
+      realizedPnl: new Prisma.Decimal(0),
     } as never);
   });
 
@@ -275,6 +277,7 @@ describe("OrderService", () => {
         outcome: "YES",
         netQuantity: 10,
         averageEntryPrice: new Prisma.Decimal(55),
+        realizedPnl: new Prisma.Decimal(0),
       },
     });
     expect(transactionClient.position.create).toHaveBeenCalledWith({
@@ -284,6 +287,7 @@ describe("OrderService", () => {
         outcome: "YES",
         netQuantity: -10,
         averageEntryPrice: new Prisma.Decimal(55),
+        realizedPnl: new Prisma.Decimal(0),
       },
     });
     expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenNthCalledWith(
@@ -351,6 +355,83 @@ describe("OrderService", () => {
       ],
       meta: {
         count: 1,
+      },
+    });
+  });
+
+  it("realizes pnl when reducing an existing long position", async () => {
+    const buyerOrder = {
+      ...orderFixture,
+      uuid: "buyer-order-uuid",
+      side: "buy",
+      price: 60,
+      quantity: 4,
+      remainingQuantity: 4,
+    };
+    const sellerOrder = {
+      ...orderFixture,
+      uuid: "seller-order-uuid",
+      userUuid: "user-uuid",
+      side: "sell",
+      price: 60,
+      quantity: 4,
+      remainingQuantity: 4,
+    };
+
+    mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
+    transactionClient.order.create.mockResolvedValue(sellerOrder as never);
+    transactionClient.order.findMany.mockResolvedValue([buyerOrder] as never);
+    transactionClient.trade.create.mockResolvedValue({
+      uuid: "trade-uuid",
+    } as never);
+    transactionClient.order.update
+      .mockResolvedValueOnce({
+        ...sellerOrder,
+        status: "filled",
+        remainingQuantity: 0,
+      } as never)
+      .mockResolvedValueOnce({
+        ...buyerOrder,
+        status: "filled",
+        remainingQuantity: 0,
+      } as never);
+    transactionClient.position.findUnique.mockImplementation(async ({ where }) => {
+      if (where.userUuid_marketUuid_outcome.userUuid === "user-uuid") {
+        return {
+          uuid: "existing-position-uuid",
+          userUuid: "user-uuid",
+          marketUuid: marketFixture.uuid,
+          outcome: "YES",
+          netQuantity: 10,
+          averageEntryPrice: new Prisma.Decimal(40),
+          realizedPnl: new Prisma.Decimal(0),
+        } as never;
+      }
+
+      return null as never;
+    });
+
+    await orderService.createOrder({
+      userUuid: "user-uuid",
+      marketUuid: marketFixture.uuid,
+      side: "sell",
+      outcome: "YES",
+      price: 60,
+      quantity: 4,
+    });
+
+    expect(transactionClient.position.update).toHaveBeenCalledWith({
+      where: {
+        userUuid_marketUuid_outcome: {
+          userUuid: "user-uuid",
+          marketUuid: marketFixture.uuid,
+          outcome: "YES",
+        },
+      },
+      data: {
+        netQuantity: 6,
+        averageEntryPrice: new Prisma.Decimal(40),
+        realizedPnl: new Prisma.Decimal("0.8000"),
       },
     });
   });
