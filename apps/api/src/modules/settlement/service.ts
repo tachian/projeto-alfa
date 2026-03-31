@@ -79,6 +79,18 @@ export class SettlementError extends Error {
 const isForeignKeyViolation = (error: unknown) =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003";
 
+const resolutionStatusToMarketStatus = (status: string) => {
+  if (status === "resolved") {
+    return "resolved";
+  }
+
+  if (status === "cancelled") {
+    return "cancelled";
+  }
+
+  return "resolving";
+};
+
 const toDecimal = (value: Prisma.Decimal | number | string | undefined, fallback: string) => {
   if (value === undefined) {
     return new Prisma.Decimal(fallback);
@@ -140,20 +152,50 @@ const mapSettlementRun = (run: {
 export class SettlementService implements SettlementServiceContract {
   async createMarketResolution(input: CreateMarketResolutionInput): Promise<MarketResolutionRecord> {
     try {
-      const resolution = await prisma.marketResolution.create({
-        data: {
-          marketUuid: input.marketUuid,
-          winningOutcome: input.winningOutcome ?? null,
-          sourceValue: input.sourceValue ?? null,
-          status: input.status,
-          notes: input.notes ?? null,
-          resolvedByUserUuid: input.resolvedByUserUuid ?? null,
-          resolvedAt: input.resolvedAt ?? null,
-        },
+      const resolution = await prisma.$transaction(async (tx) => {
+        const market = await tx.market.findUnique({
+          where: {
+            uuid: input.marketUuid,
+          },
+          select: {
+            uuid: true,
+          },
+        });
+
+        if (!market) {
+          throw new SettlementError("Mercado nao encontrado para resolucao.", 404);
+        }
+
+        const createdResolution = await tx.marketResolution.create({
+          data: {
+            marketUuid: input.marketUuid,
+            winningOutcome: input.winningOutcome ?? null,
+            sourceValue: input.sourceValue ?? null,
+            status: input.status,
+            notes: input.notes ?? null,
+            resolvedByUserUuid: input.resolvedByUserUuid ?? null,
+            resolvedAt: input.resolvedAt ?? null,
+          },
+        });
+
+        await tx.market.update({
+          where: {
+            uuid: input.marketUuid,
+          },
+          data: {
+            status: resolutionStatusToMarketStatus(input.status),
+          },
+        });
+
+        return createdResolution;
       });
 
       return mapMarketResolution(resolution);
     } catch (error) {
+      if (error instanceof SettlementError) {
+        throw error;
+      }
+
       if (isForeignKeyViolation(error)) {
         throw new SettlementError("Mercado nao encontrado para resolucao.", 404);
       }

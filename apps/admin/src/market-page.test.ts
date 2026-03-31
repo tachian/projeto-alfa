@@ -15,5 +15,7 @@ describe("renderMarketPage", () => {
     expect(html).toContain("Order Book");
     expect(html).toContain("Ultimas execucoes");
     expect(html).toContain("Ordens do usuario");
+    expect(html).toContain("Historico de resolucao");
+    expect(html).toContain("Guiar resolucao e liquidacao");
   });
 });

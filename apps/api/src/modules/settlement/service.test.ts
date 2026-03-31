@@ -5,6 +5,11 @@ import { SettlementError, SettlementService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
+    $transaction: vi.fn(),
+    market: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
     marketResolution: {
       create: vi.fn(),
       findMany: vi.fn(),
@@ -24,9 +29,17 @@ describe("SettlementService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedPrisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        market: mockedPrisma.market,
+        marketResolution: mockedPrisma.marketResolution,
+      } as never));
   });
 
   it("creates and lists market resolutions", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue({
+      uuid: "market-uuid",
+    } as never);
     mockedPrisma.marketResolution.create.mockResolvedValue({
       uuid: "resolution-uuid",
       marketUuid: "market-uuid",
@@ -38,6 +51,10 @@ describe("SettlementService", () => {
       resolvedAt: new Date("2026-06-18T21:05:00.000Z"),
       createdAt: new Date("2026-06-18T21:05:00.000Z"),
       updatedAt: new Date("2026-06-18T21:05:00.000Z"),
+    } as never);
+    mockedPrisma.market.update.mockResolvedValue({
+      uuid: "market-uuid",
+      status: "resolved",
     } as never);
     mockedPrisma.marketResolution.findMany.mockResolvedValue([
       {
@@ -74,6 +91,14 @@ describe("SettlementService", () => {
         winningOutcome: "YES",
       }),
     ]);
+    expect(mockedPrisma.market.update).toHaveBeenCalledWith({
+      where: {
+        uuid: "market-uuid",
+      },
+      data: {
+        status: "resolved",
+      },
+    });
   });
 
   it("creates, updates and lists settlement runs", async () => {
@@ -181,5 +206,16 @@ describe("SettlementService", () => {
         status: "completed",
       }),
     ).rejects.toThrowError(new SettlementError("Settlement run nao encontrado.", 404));
+  });
+
+  it("returns 404 when creating a resolution for a missing market", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue(null);
+
+    await expect(
+      settlementService.createMarketResolution({
+        marketUuid: "missing-market-uuid",
+        status: "pending",
+      }),
+    ).rejects.toThrowError(new SettlementError("Mercado nao encontrado para resolucao.", 404));
   });
 });

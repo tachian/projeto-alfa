@@ -148,6 +148,36 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (
+    pathname.startsWith("/api/admin/markets/") &&
+    (pathname.endsWith("/resolutions") || pathname.endsWith("/settlement-runs")) &&
+    ["GET", "POST"].includes(request.method ?? "")
+  ) {
+    const body = request.method === "POST" ? await readJsonBody(request) : undefined;
+    const adminPath = pathname.replace("/api", "");
+    await proxyApiRequest({
+      request,
+      response,
+      path: adminPath,
+      method: request.method ?? "GET",
+      body,
+    });
+    return;
+  }
+
+  if (pathname.startsWith("/api/admin/settlement-runs/") && request.method === "PATCH") {
+    const settlementRunUuid = pathname.replace("/api/admin/settlement-runs/", "").trim();
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/admin/settlement-runs/${settlementRunUuid}`,
+      method: "PATCH",
+      body,
+    });
+    return;
+  }
+
   if (pathname === "/api/admin/markets" && (request.method === "GET" || request.method === "POST")) {
     const body = request.method === "POST" ? await readJsonBody(request) : undefined;
     await proxyApiRequest({

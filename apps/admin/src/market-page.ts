@@ -515,6 +515,48 @@ export const renderMarketPage = (input: {
               <p class="section-copy" id="market-rules">-</p>
             </div>
           </article>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Resolucao Assistida</div>
+              <h2>Historico de resolucao</h2>
+              <p class="section-copy">Acompanhe a trilha de resolucoes manuais e as tentativas de liquidacao deste mercado.</p>
+              <div class="admin-toolbar">
+                <button type="button" id="refresh-resolution-data" class="secondary">Atualizar historico</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Resultado</th>
+                      <th>Fonte</th>
+                      <th>Resolvido em</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resolution-history-body">
+                    <tr><td colspan="4" class="empty-state">Nenhuma resolucao registrada ainda.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Contratos</th>
+                      <th>Payout</th>
+                      <th>Iniciada em</th>
+                      <th>Run</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settlement-run-history-body">
+                    <tr><td colspan="5" class="empty-state">Nenhum settlement run registrado ainda.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
         </div>
 
         <div class="right-column">
@@ -583,6 +625,54 @@ export const renderMarketPage = (input: {
               <div id="admin-status" class="admin-status">Cole um token valido para editar, suspender, fechar ou listar suas ordens.</div>
             </div>
           </article>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Resolucao Manual</div>
+              <h2>Guiar resolucao e liquidacao</h2>
+              <p class="section-copy">Use esta area para registrar a decisao oficial do mercado e acompanhar a execucao assistida da liquidacao.</p>
+              <form id="resolution-form" class="form-grid">
+                <div class="form-grid two">
+                  <label class="field-label">Status da resolucao
+                    <input name="status" value="pending" required />
+                  </label>
+                  <label class="field-label">Resultado vencedor
+                    <input name="winningOutcome" placeholder="YES ou NO" />
+                  </label>
+                </div>
+                <label class="field-label">Valor da fonte oficial
+                  <input name="sourceValue" placeholder="Texto curto com o valor publicado" />
+                </label>
+                <label class="field-label">Notas operacionais
+                  <textarea name="notes" placeholder="Observacoes internas sobre a resolucao"></textarea>
+                </label>
+                <button type="submit" id="save-resolution">Registrar resolucao</button>
+              </form>
+              <form id="settlement-run-form" class="form-grid">
+                <label class="field-label">UUID da resolucao
+                  <input name="marketResolutionUuid" placeholder="Preenchido automaticamente ao escolher a ultima resolucao" />
+                </label>
+                <div class="form-grid two">
+                  <label class="field-label">Status do settlement run
+                    <input name="status" value="pending" required />
+                  </label>
+                  <label class="field-label">Contratos processados
+                    <input name="contractsProcessed" type="number" min="0" step="1" value="0" />
+                  </label>
+                </div>
+                <label class="field-label">Payout total
+                  <input name="totalPayout" type="number" min="0" step="0.0001" value="0" />
+                </label>
+                <label class="field-label">Metadata em JSON
+                  <textarea name="metadata" placeholder='{"dryRun": true}'></textarea>
+                </label>
+                <div class="admin-toolbar">
+                  <button type="button" id="create-settlement-run">Criar settlement run</button>
+                  <button type="button" id="update-latest-settlement-run" class="secondary">Atualizar ultimo run</button>
+                </div>
+              </form>
+            </div>
+          </article>
         </div>
       </section>
     </main>
@@ -591,6 +681,8 @@ export const renderMarketPage = (input: {
       const marketUuid = ${JSON.stringify(input.marketUuid)};
       const tokenStorageKey = "projeto-alfa.admin.token";
       let recentTrades = [];
+      let recentResolutions = [];
+      let recentSettlementRuns = [];
       let liveSocket = null;
 
       const formatDate = (value) => {
@@ -637,7 +729,7 @@ export const renderMarketPage = (input: {
       const saveToken = async () => {
         localStorage.setItem(tokenStorageKey, getToken());
         setAdminStatus("Token salvo no navegador.", "success");
-        await loadUserOrders();
+        await Promise.all([loadUserOrders(), loadResolutions(), loadSettlementRuns()]);
       };
 
       const fetchJson = async (url, options = {}) => {
@@ -664,7 +756,11 @@ export const renderMarketPage = (input: {
         const tbody = document.getElementById(bodyId);
 
         if (!rows.length) {
-          const colSpan = bodyId === "user-orders-body" ? 7 : bodyId === "order-book-body" ? 5 : 4;
+          const colSpan =
+            bodyId === "user-orders-body" ? 7 :
+            bodyId === "order-book-body" ? 5 :
+            bodyId === "settlement-run-history-body" ? 5 :
+            4;
           tbody.innerHTML = "<tr><td colspan=\\"" + colSpan + "\\" class=\\"empty-state\\">" + emptyMessage + "</td></tr>";
           return;
         }
@@ -714,6 +810,39 @@ export const renderMarketPage = (input: {
         );
 
         renderRows("user-orders-body", "Nenhuma ordem encontrada para este usuario neste mercado.", rows);
+      };
+
+      const renderResolutions = (resolutions) => {
+        recentResolutions = resolutions.slice(0, 10);
+        const rows = recentResolutions.map((resolution) =>
+          "<tr>" +
+            "<td>" + (resolution.status ?? "-") + "</td>" +
+            "<td>" + (resolution.winningOutcome ?? "-") + "</td>" +
+            "<td>" + (resolution.sourceValue ?? "-") + "</td>" +
+            "<td>" + formatDate(resolution.resolvedAt ?? resolution.createdAt) + "</td>" +
+          "</tr>"
+        );
+
+        renderRows("resolution-history-body", "Nenhuma resolucao registrada ainda.", rows);
+
+        if (recentResolutions[0]) {
+          document.getElementById("settlement-run-form").elements.marketResolutionUuid.value = recentResolutions[0].uuid;
+        }
+      };
+
+      const renderSettlementRuns = (runs) => {
+        recentSettlementRuns = runs.slice(0, 10);
+        const rows = recentSettlementRuns.map((run) =>
+          "<tr>" +
+            "<td>" + run.status + "</td>" +
+            "<td>" + run.contractsProcessed + "</td>" +
+            "<td>$ " + run.totalPayout + "</td>" +
+            "<td>" + formatDate(run.startedAt) + "</td>" +
+            "<td><code>" + run.uuid + "</code></td>" +
+          "</tr>"
+        );
+
+        renderRows("settlement-run-history-body", "Nenhum settlement run registrado ainda.", rows);
       };
 
       const fillMarket = (market) => {
@@ -790,6 +919,36 @@ export const renderMarketPage = (input: {
         }
       };
 
+      const loadResolutions = async () => {
+        if (!getToken()) {
+          renderResolutions([]);
+          return;
+        }
+
+        try {
+          const payload = await fetchJson("/api/admin/markets/" + marketUuid + "/resolutions");
+          renderResolutions(payload.items ?? []);
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+          renderResolutions([]);
+        }
+      };
+
+      const loadSettlementRuns = async () => {
+        if (!getToken()) {
+          renderSettlementRuns([]);
+          return;
+        }
+
+        try {
+          const payload = await fetchJson("/api/admin/markets/" + marketUuid + "/settlement-runs");
+          renderSettlementRuns(payload.items ?? []);
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+          renderSettlementRuns([]);
+        }
+      };
+
       const submitUpdate = async (override = {}) => {
         const form = document.getElementById("market-form");
         const formData = new FormData(form);
@@ -818,6 +977,87 @@ export const renderMarketPage = (input: {
           });
           fillMarket(result.market);
           setAdminStatus("Mercado atualizado com sucesso.", "success");
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+        }
+      };
+
+      const submitResolution = async () => {
+        const form = document.getElementById("resolution-form");
+        const formData = new FormData(form);
+        const winningOutcome = String(formData.get("winningOutcome") ?? "").trim();
+        const payload = {
+          status: String(formData.get("status") ?? "pending").trim(),
+          winningOutcome: winningOutcome ? winningOutcome : null,
+          sourceValue: String(formData.get("sourceValue") ?? "").trim() || null,
+          notes: String(formData.get("notes") ?? "").trim() || null,
+        };
+
+        setAdminStatus("Registrando resolucao manual...");
+
+        try {
+          await fetchJson("/api/admin/markets/" + marketUuid + "/resolutions", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          await Promise.all([loadMarket(), loadResolutions()]);
+          setAdminStatus("Resolucao registrada com sucesso.", "success");
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+        }
+      };
+
+      const readSettlementRunPayload = () => {
+        const form = document.getElementById("settlement-run-form");
+        const formData = new FormData(form);
+        const metadataRaw = String(formData.get("metadata") ?? "").trim();
+
+        return {
+          marketResolutionUuid: String(formData.get("marketResolutionUuid") ?? "").trim(),
+          status: String(formData.get("status") ?? "pending").trim(),
+          contractsProcessed: Number(formData.get("contractsProcessed") ?? 0),
+          totalPayout: String(formData.get("totalPayout") ?? "0").trim(),
+          metadata: metadataRaw ? JSON.parse(metadataRaw) : undefined,
+        };
+      };
+
+      const createSettlementRun = async () => {
+        setAdminStatus("Criando settlement run...");
+
+        try {
+          const payload = readSettlementRunPayload();
+          await fetchJson("/api/admin/markets/" + marketUuid + "/settlement-runs", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          await loadSettlementRuns();
+          setAdminStatus("Settlement run criado com sucesso.", "success");
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+        }
+      };
+
+      const updateLatestSettlementRun = async () => {
+        if (!recentSettlementRuns[0]) {
+          setAdminStatus("Nao existe settlement run para atualizar.", "danger");
+          return;
+        }
+
+        setAdminStatus("Atualizando o ultimo settlement run...");
+
+        try {
+          const payload = readSettlementRunPayload();
+          await fetchJson("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid, {
+            method: "PATCH",
+            body: JSON.stringify({
+              status: payload.status,
+              contractsProcessed: payload.contractsProcessed,
+              totalPayout: payload.totalPayout,
+              metadata: payload.metadata,
+            }),
+          });
+          await loadSettlementRuns();
+          setAdminStatus("Settlement run atualizado com sucesso.", "success");
         } catch (error) {
           setAdminStatus(error.message, "danger");
         }
@@ -871,10 +1111,19 @@ export const renderMarketPage = (input: {
       document.getElementById("auth-token").value = localStorage.getItem(tokenStorageKey) ?? "";
       document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
+      document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
+        await Promise.all([loadResolutions(), loadSettlementRuns()]);
+      });
       document.getElementById("market-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         await submitUpdate();
       });
+      document.getElementById("resolution-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await submitResolution();
+      });
+      document.getElementById("create-settlement-run").addEventListener("click", createSettlementRun);
+      document.getElementById("update-latest-settlement-run").addEventListener("click", updateLatestSettlementRun);
       document.getElementById("suspend-market").addEventListener("click", async () => {
         await submitUpdate({ status: "suspended" });
       });
@@ -882,7 +1131,7 @@ export const renderMarketPage = (input: {
         await submitUpdate({ status: "closed" });
       });
 
-      Promise.all([loadMarket(), loadOrderBook(), loadRecentTrades(), loadUserOrders()])
+      Promise.all([loadMarket(), loadOrderBook(), loadRecentTrades(), loadUserOrders(), loadResolutions(), loadSettlementRuns()])
         .then(() => connectRealtime())
         .catch((error) => setError(error.message));
     </script>

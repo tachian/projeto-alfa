@@ -288,6 +288,8 @@ describe("admin sprint 3 e2e", () => {
     expect(pageHtml).toContain("Order Book");
     expect(pageHtml).toContain("Ultimas execucoes");
     expect(pageHtml).toContain("Ordens do usuario");
+    expect(pageHtml).toContain("Historico de resolucao");
+    expect(pageHtml).toContain("Guiar resolucao e liquidacao");
 
     const detailResponse = await invokeAdminRoute({
       method: "GET",
@@ -394,6 +396,200 @@ describe("admin sprint 3 e2e", () => {
         body: JSON.stringify({
           status: "closed",
         }),
+      }),
+    );
+  });
+
+  it("forwards resolution and settlement admin requests from the market page", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "resolution-uuid",
+                marketUuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+                status: "resolved",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            resolution: {
+              uuid: "new-resolution-uuid",
+              status: "resolved",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "run-uuid",
+                status: "pending",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            settlementRun: {
+              uuid: "new-run-uuid",
+              status: "pending",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            settlementRun: {
+              uuid: "run-uuid",
+              status: "completed",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const listResolutionsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/resolutions",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(listResolutionsResponse.status).toBe(200);
+    expect(listResolutionsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "resolution-uuid",
+        },
+      ],
+    });
+
+    const createResolutionResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/resolutions",
+      headers: {
+        authorization: "Bearer admin-token",
+        "content-type": "application/json",
+      },
+      body: {
+        status: "resolved",
+        winningOutcome: "YES",
+      },
+    });
+    expect(createResolutionResponse.status).toBe(201);
+    expect(createResolutionResponse.json()).toMatchObject({
+      resolution: {
+        uuid: "new-resolution-uuid",
+      },
+    });
+
+    const listRunsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/settlement-runs",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(listRunsResponse.status).toBe(200);
+    expect(listRunsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "run-uuid",
+        },
+      ],
+    });
+
+    const createRunResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/settlement-runs",
+      headers: {
+        authorization: "Bearer admin-token",
+        "content-type": "application/json",
+      },
+      body: {
+        marketResolutionUuid: "resolution-uuid",
+        status: "pending",
+      },
+    });
+    expect(createRunResponse.status).toBe(201);
+    expect(createRunResponse.json()).toMatchObject({
+      settlementRun: {
+        uuid: "new-run-uuid",
+      },
+    });
+
+    const updateRunResponse = await invokeAdminRoute({
+      method: "PATCH",
+      url: "/api/admin/settlement-runs/33333333-3333-4333-8333-333333333333",
+      headers: {
+        authorization: "Bearer admin-token",
+        "content-type": "application/json",
+      },
+      body: {
+        status: "completed",
+      },
+    });
+    expect(updateRunResponse.status).toBe(200);
+    expect(updateRunResponse.json()).toMatchObject({
+      settlementRun: {
+        uuid: "run-uuid",
+        status: "completed",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/resolutions", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/resolutions", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/settlement-runs", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/settlement-runs", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      new URL("/admin/settlement-runs/33333333-3333-4333-8333-333333333333", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "PATCH",
       }),
     );
   });
