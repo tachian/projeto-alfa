@@ -204,6 +204,9 @@ Chamadas disponiveis na collection:
 - `GET /auth/me`
 - `GET /markets`
 - `GET /markets/:marketUuid`
+- `POST /orders`
+- `GET /orders`
+- `POST /orders/:orderUuid/cancel`
 - `POST /payments/deposits`
 - `GET /payments/deposits`
 - `POST /payments/withdrawals`
@@ -230,6 +233,14 @@ Exemplo:
 ```text
 GET /markets?status=open&category=macro&closeAtFrom=2026-06-01T00:00:00.000Z&closeAtTo=2026-06-30T23:59:59.000Z
 ```
+
+As ordens do MVP aceitam apenas:
+
+- `side`: `buy` ou `sell`
+- `outcome`: `YES` ou `NO`
+- `orderType`: `limit`
+- `price`: inteiro entre `1` e `99`
+- `quantity`: inteiro maior que `0`
 
 ## CI/CD
 

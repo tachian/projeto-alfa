@@ -373,6 +373,100 @@
       ]
     },
     {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marketUuid\": \"8fbc76f5-3958-4cb5-a7ef-c4bd67b29520\",\n  \"side\": \"buy\",\n  \"outcome\": \"YES\",\n  \"orderType\": \"limit\",\n  \"price\": 55,\n  \"quantity\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Cria uma ordem limite para um mercado aberto."
+          },
+          "response": []
+        },
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders?status=open&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Lista as ordens do usuario autenticado com filtros opcionais."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/c4baf11d-3367-4b8e-bfb3-8a3a7a6d3df1/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "c4baf11d-3367-4b8e-bfb3-8a3a7a6d3df1",
+                "cancel"
+              ]
+            },
+            "description": "Cancela uma ordem aberta do usuario autenticado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Payments",
       "item": [
         {

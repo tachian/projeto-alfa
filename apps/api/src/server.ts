@@ -7,6 +7,8 @@ import { buildMarketCatalogRoutes } from "./modules/markets/public-routes.js";
 import type { MarketCatalogServiceContract } from "./modules/markets/public-service.js";
 import { buildMarketAdminRoutes } from "./modules/markets/routes.js";
 import type { MarketAdminServiceContract } from "./modules/markets/service.js";
+import { buildOrderRoutes } from "./modules/orders/routes.js";
+import type { OrderServiceContract } from "./modules/orders/service.js";
 import { buildPaymentRoutes } from "./modules/payments/routes.js";
 import type { PaymentServiceContract } from "./modules/payments/service.js";
 import { buildWalletRoutes } from "./modules/wallet/routes.js";
@@ -20,6 +22,7 @@ type BuildServerOptions = {
   authService?: AuthServiceContract;
   marketCatalogService?: MarketCatalogServiceContract;
   marketAdminService?: MarketAdminServiceContract;
+  orderService?: OrderServiceContract;
   paymentService?: PaymentServiceContract;
   walletService?: WalletServiceContract;
 };
@@ -47,6 +50,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(buildMarketCatalogRoutes(options.marketCatalogService));
   await server.register(buildAuthRoutes(options.authService));
   await server.register(buildMarketAdminRoutes(options.marketAdminService, options.authService));
+  await server.register(buildOrderRoutes(options.orderService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
 
