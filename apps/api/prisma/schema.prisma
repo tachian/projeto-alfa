@@ -16,6 +16,7 @@ model User {
   updatedAt     DateTime       @updatedAt @map("updated_at")
   refreshTokens RefreshToken[]
   orders        Order[]
+  positions     Position[]
   accounts      Account[]
   ledgerEntries LedgerEntry[]
   payments      Payment[]
@@ -39,9 +40,28 @@ model Market {
   rules         MarketRule?
   orders        Order[]
   trades        Trade[]
+  positions     Position[]
 
   @@index([status, closeAt])
   @@map("markets")
+}
+
+model Position {
+  uuid              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userUuid          String   @db.Uuid @map("user_uuid")
+  marketUuid        String   @db.Uuid @map("market_uuid")
+  outcome           String
+  netQuantity       Int      @default(0) @map("net_quantity")
+  averageEntryPrice Decimal  @default(0) @db.Decimal(12, 4) @map("average_entry_price")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  market            Market   @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
+
+  @@unique([userUuid, marketUuid, outcome])
+  @@index([marketUuid, outcome])
+  @@index([userUuid, updatedAt])
+  @@map("positions")
 }
 
 model MarketRule {

@@ -92,6 +92,11 @@ describe("OrderService", () => {
     trade: {
       create: vi.fn(),
     },
+    position: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   };
 
   beforeEach(() => {
@@ -113,6 +118,13 @@ describe("OrderService", () => {
     vi.mocked(mockedLedgerService.postTransaction).mockResolvedValue({
       transaction: { uuid: "ledger-tx-uuid" },
       entries: [],
+    } as never);
+    transactionClient.position.findUnique.mockResolvedValue(null as never);
+    transactionClient.position.create.mockResolvedValue({
+      uuid: "position-uuid",
+    } as never);
+    transactionClient.position.update.mockResolvedValue({
+      uuid: "position-uuid",
     } as never);
   });
 
@@ -245,6 +257,24 @@ describe("OrderService", () => {
         sellOrderUuid: makerSellOrder.uuid,
         price: 55,
         quantity: 10,
+      },
+    });
+    expect(transactionClient.position.create).toHaveBeenCalledWith({
+      data: {
+        userUuid: "user-uuid",
+        marketUuid: marketFixture.uuid,
+        outcome: "YES",
+        netQuantity: 10,
+        averageEntryPrice: new Prisma.Decimal(55),
+      },
+    });
+    expect(transactionClient.position.create).toHaveBeenCalledWith({
+      data: {
+        userUuid: "maker-user-uuid",
+        marketUuid: marketFixture.uuid,
+        outcome: "YES",
+        netQuantity: -10,
+        averageEntryPrice: new Prisma.Decimal(55),
       },
     });
     expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenNthCalledWith(

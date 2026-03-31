@@ -167,6 +167,8 @@ const assertMarketCanReceiveOrders = (market: {
 
 const getFilledStatus = (remainingQuantity: number) => (remainingQuantity === 0 ? "filled" : "partially_filled");
 
+const ZERO_DECIMAL = new Prisma.Decimal(0);
+
 export class OrderService implements OrderServiceContract {
   constructor(private readonly ledgerService = new LedgerService()) {}
 
@@ -380,6 +382,29 @@ export class OrderService implements OrderServiceContract {
               quantity: tradeQuantity,
             },
           });
+
+          await Promise.all([
+            this.applyTradeToPosition(
+              {
+                tx,
+                userUuid: buyerOrder.userUuid,
+                marketUuid: input.marketUuid,
+                outcome: input.outcome,
+                quantityDelta: tradeQuantity,
+                executionPrice: tradePrice,
+              },
+            ),
+            this.applyTradeToPosition(
+              {
+                tx,
+                userUuid: sellerOrder.userUuid,
+                marketUuid: input.marketUuid,
+                outcome: input.outcome,
+                quantityDelta: -tradeQuantity,
+                executionPrice: tradePrice,
+              },
+            ),
+          ]);
 
           const nextCurrentRemaining = currentOrder.remainingQuantity - tradeQuantity;
           const nextRestingRemaining = restingOrder.remainingQuantity - tradeQuantity;
@@ -702,5 +727,69 @@ export class OrderService implements OrderServiceContract {
   }) {
     const centsPerContract = input.side === "buy" ? input.price : 100 - input.price;
     return new Prisma.Decimal(centsPerContract).mul(input.quantity).div(100);
+  }
+
+  private async applyTradeToPosition(input: {
+    tx: Prisma.TransactionClient;
+    userUuid: string;
+    marketUuid: string;
+    outcome: string;
+    quantityDelta: number;
+    executionPrice: number;
+  }) {
+    const existingPosition = await input.tx.position.findUnique({
+      where: {
+        userUuid_marketUuid_outcome: {
+          userUuid: input.userUuid,
+          marketUuid: input.marketUuid,
+          outcome: input.outcome,
+        },
+      },
+    });
+
+    if (!existingPosition) {
+      return input.tx.position.create({
+        data: {
+          userUuid: input.userUuid,
+          marketUuid: input.marketUuid,
+          outcome: input.outcome,
+          netQuantity: input.quantityDelta,
+          averageEntryPrice: new Prisma.Decimal(input.executionPrice),
+        },
+      });
+    }
+
+    const currentNetQuantity = existingPosition.netQuantity;
+    const nextNetQuantity = currentNetQuantity + input.quantityDelta;
+    const currentPrice = new Prisma.Decimal(existingPosition.averageEntryPrice);
+    const executionPrice = new Prisma.Decimal(input.executionPrice);
+
+    let nextAverageEntryPrice = currentPrice;
+
+    if (nextNetQuantity === 0) {
+      nextAverageEntryPrice = ZERO_DECIMAL;
+    } else if (currentNetQuantity === 0 || Math.sign(currentNetQuantity) !== Math.sign(input.quantityDelta)) {
+      if (Math.sign(currentNetQuantity) !== Math.sign(nextNetQuantity) || currentNetQuantity === 0) {
+        nextAverageEntryPrice = executionPrice;
+      }
+    } else {
+      const weightedCurrent = currentPrice.mul(Math.abs(currentNetQuantity));
+      const weightedTrade = executionPrice.mul(Math.abs(input.quantityDelta));
+      nextAverageEntryPrice = weightedCurrent.plus(weightedTrade).div(Math.abs(nextNetQuantity));
+    }
+
+    return input.tx.position.update({
+      where: {
+        userUuid_marketUuid_outcome: {
+          userUuid: input.userUuid,
+          marketUuid: input.marketUuid,
+          outcome: input.outcome,
+        },
+      },
+      data: {
+        netQuantity: nextNetQuantity,
+        averageEntryPrice: nextAverageEntryPrice,
+      },
+    });
   }
 }
