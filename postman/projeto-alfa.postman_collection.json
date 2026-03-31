@@ -369,6 +369,26 @@
             "description": "Retorna o detalhe publico do mercado, incluindo regras e fonte oficial."
           },
           "response": []
+        },
+        {
+          "name": "Get Market Order Book",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/book",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "markets",
+                "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+                "book"
+              ]
+            },
+            "description": "Retorna o order book agregado do mercado por side, outcome e preco."
+          },
+          "response": []
         }
       ]
     },

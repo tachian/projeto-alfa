@@ -9,6 +9,9 @@ vi.mock("../../lib/prisma.js", () => ({
       findMany: vi.fn(),
       findUnique: vi.fn(),
     },
+    order: {
+      groupBy: vi.fn(),
+    },
   },
 }));
 
@@ -90,5 +93,57 @@ describe("MarketCatalogService", () => {
     await expect(marketCatalogService.getMarket(marketFixture.uuid)).rejects.toThrowError(
       new MarketCatalogError("Mercado nao encontrado.", 404),
     );
+  });
+
+  it("returns the aggregated order book for a market", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue({
+      uuid: marketFixture.uuid,
+      status: "open",
+    } as never);
+    mockedPrisma.order.groupBy.mockResolvedValue([
+      {
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        _sum: {
+          remainingQuantity: 12,
+        },
+        _count: {
+          _all: 2,
+        },
+      },
+      {
+        side: "sell",
+        outcome: "YES",
+        price: 60,
+        _sum: {
+          remainingQuantity: 7,
+        },
+        _count: {
+          _all: 1,
+        },
+      },
+    ] as never);
+
+    await expect(marketCatalogService.getOrderBook(marketFixture.uuid)).resolves.toEqual({
+      marketUuid: marketFixture.uuid,
+      marketStatus: "open",
+      levels: [
+        {
+          side: "buy",
+          outcome: "YES",
+          price: 55,
+          quantity: 12,
+          orderCount: 2,
+        },
+        {
+          side: "sell",
+          outcome: "YES",
+          price: 60,
+          quantity: 7,
+          orderCount: 1,
+        },
+      ],
+    });
   });
 });

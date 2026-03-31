@@ -172,6 +172,20 @@ class InMemoryMarketService implements MarketAdminServiceContract, MarketCatalog
 
     return this.listMarketsForAdmin();
   }
+
+  async getOrderBook(marketUuid: string) {
+    const market = this.markets.get(marketUuid);
+
+    if (!market) {
+      throw new Error("Mercado nao encontrado.");
+    }
+
+    return {
+      marketUuid: market.uuid,
+      marketStatus: market.status,
+      levels: [],
+    };
+  }
 }
 
 describe("markets sprint 3 e2e", () => {

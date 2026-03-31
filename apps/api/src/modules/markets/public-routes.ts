@@ -57,6 +57,26 @@ export const buildMarketCatalogRoutes = (
         throw error;
       }
     });
+
+    fastify.get("/markets/:marketUuid/book", async (request, reply) => {
+      try {
+        const params = marketUuidParamSchema.parse(request.params);
+
+        return {
+          orderBook: await marketCatalogService.getOrderBook(params.marketUuid),
+        };
+      } catch (error) {
+        if (error instanceof MarketCatalogError) {
+          reply.code(error.statusCode);
+
+          return {
+            message: error.message,
+          };
+        }
+
+        throw error;
+      }
+    });
   };
 };
 

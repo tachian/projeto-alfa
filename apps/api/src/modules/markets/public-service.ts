@@ -34,9 +34,24 @@ export type ListPublicMarketsInput = {
   closeAtTo?: Date;
 };
 
+export type OrderBookLevel = {
+  side: string;
+  outcome: string;
+  price: number;
+  quantity: number;
+  orderCount: number;
+};
+
+export type MarketOrderBookRecord = {
+  marketUuid: string;
+  marketStatus: string;
+  levels: OrderBookLevel[];
+};
+
 export interface MarketCatalogServiceContract {
   listMarkets(input?: ListPublicMarketsInput): Promise<PublicMarketRecord[]>;
   getMarket(marketUuid: string): Promise<PublicMarketRecord>;
+  getOrderBook(marketUuid: string): Promise<MarketOrderBookRecord>;
 }
 
 export class MarketCatalogError extends Error {
@@ -115,5 +130,54 @@ export class MarketCatalogService implements MarketCatalogServiceContract {
     }
 
     return mapMarket(market);
+  }
+
+  async getOrderBook(marketUuid: string): Promise<MarketOrderBookRecord> {
+    const market = await prisma.market.findUnique({
+      where: {
+        uuid: marketUuid,
+      },
+      select: {
+        uuid: true,
+        status: true,
+      },
+    });
+
+    if (!market) {
+      throw new MarketCatalogError("Mercado nao encontrado.", 404);
+    }
+
+    const groupedLevels = await prisma.order.groupBy({
+      by: ["side", "outcome", "price"],
+      where: {
+        marketUuid,
+        status: {
+          in: ["open", "partially_filled"],
+        },
+      },
+      _sum: {
+        remainingQuantity: true,
+      },
+      _count: {
+        _all: true,
+      },
+      orderBy: [
+        {
+          price: "desc",
+        },
+      ],
+    });
+
+    return {
+      marketUuid: market.uuid,
+      marketStatus: market.status,
+      levels: groupedLevels.map((level) => ({
+        side: level.side,
+        outcome: level.outcome,
+        price: level.price,
+        quantity: level._sum.remainingQuantity ?? 0,
+        orderCount: level._count._all,
+      })),
+    };
   }
 }

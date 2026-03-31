@@ -204,6 +204,7 @@ Chamadas disponiveis na collection:
 - `GET /auth/me`
 - `GET /markets`
 - `GET /markets/:marketUuid`
+- `GET /markets/:marketUuid/book`
 - `POST /orders`
 - `GET /orders`
 - `POST /orders/:orderUuid/cancel`

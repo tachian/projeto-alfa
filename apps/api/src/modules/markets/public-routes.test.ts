@@ -58,6 +58,7 @@ describe("market catalog routes", () => {
   const marketCatalogService: MarketCatalogServiceContract = {
     listMarkets: vi.fn(),
     getMarket: vi.fn(),
+    getOrderBook: vi.fn(),
   };
 
   beforeEach(() => {
@@ -115,6 +116,49 @@ describe("market catalog routes", () => {
         rules: {
           officialSourceLabel: "Federal Reserve statement",
         },
+      },
+    });
+  });
+
+  it("returns the market order book publicly", async () => {
+    vi.mocked(marketCatalogService.getOrderBook).mockResolvedValue({
+      marketUuid: marketRecord.uuid,
+      marketStatus: "open",
+      levels: [
+        {
+          side: "buy",
+          outcome: "YES",
+          price: 55,
+          quantity: 12,
+          orderCount: 2,
+        },
+      ],
+    });
+
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      marketCatalogService,
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/markets/${marketRecord.uuid}/book`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      orderBook: {
+        marketUuid: marketRecord.uuid,
+        marketStatus: "open",
+        levels: [
+          {
+            side: "buy",
+            outcome: "YES",
+            price: 55,
+            quantity: 12,
+            orderCount: 2,
+          },
+        ],
       },
     });
   });
