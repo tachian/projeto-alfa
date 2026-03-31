@@ -187,6 +187,22 @@ curl http://127.0.0.1:4000/
 curl http://127.0.0.1:4000/health/ready
 ```
 
+Canal realtime do `api`:
+
+- `ws://127.0.0.1:4000/realtime`
+
+Depois de conectar, envie comandos JSON como:
+
+```json
+{ "action": "subscribe", "channel": "market:<marketUuid>:book" }
+```
+
+ou
+
+```json
+{ "action": "subscribe", "channel": "market:<marketUuid>:trades" }
+```
+
 ## Postman
 
 Collection pronta para importacao:

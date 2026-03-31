@@ -11,6 +11,7 @@ import { buildOrderRoutes } from "./modules/orders/routes.js";
 import type { OrderServiceContract } from "./modules/orders/service.js";
 import { buildPaymentRoutes } from "./modules/payments/routes.js";
 import type { PaymentServiceContract } from "./modules/payments/service.js";
+import { realtimeHub } from "./modules/realtime/hub.js";
 import { buildWalletRoutes } from "./modules/wallet/routes.js";
 import type { WalletServiceContract } from "./modules/wallet/service.js";
 import { dependenciesPluginRegistered } from "./plugins/dependencies.js";
@@ -53,6 +54,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(buildOrderRoutes(options.orderService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
+  realtimeHub.attach(server.server);
 
   server.get("/", async () => {
     return {
@@ -61,6 +63,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
       docs: {
         liveness: "/health/live",
         readiness: "/health/ready",
+        realtime: "/realtime",
       },
     };
   });

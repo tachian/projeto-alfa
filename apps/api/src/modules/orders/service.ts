@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
 import type { LedgerEntryDraft } from "../ledger/types.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
+import { RealtimePublisher, type RealtimePublisherContract } from "../realtime/publisher.js";
 
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
@@ -170,7 +171,10 @@ const getFilledStatus = (remainingQuantity: number) => (remainingQuantity === 0 
 const ZERO_DECIMAL = new Prisma.Decimal(0);
 
 export class OrderService implements OrderServiceContract {
-  constructor(private readonly ledgerService = new LedgerService()) {}
+  constructor(
+    private readonly ledgerService = new LedgerService(),
+    private readonly realtimePublisher: RealtimePublisherContract = new RealtimePublisher(),
+  ) {}
 
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     const normalizedOrderType = input.orderType ?? "limit";
@@ -194,6 +198,16 @@ export class OrderService implements OrderServiceContract {
     assertMarketCanReceiveOrders(market);
 
     try {
+      const matchedTrades: Array<{
+        uuid: string;
+        marketUuid: string;
+        buyOrderUuid: string;
+        sellOrderUuid: string;
+        price: number;
+        quantity: number;
+        executedAt?: Date;
+      }> = [];
+
       const order = await prisma.$transaction(async (tx) => {
         const accounts = await this.ledgerService.ensureUserAccounts(
           {
@@ -382,6 +396,15 @@ export class OrderService implements OrderServiceContract {
               quantity: tradeQuantity,
             },
           });
+          matchedTrades.push({
+            uuid: trade.uuid,
+            marketUuid: input.marketUuid,
+            buyOrderUuid: buyerOrder.uuid,
+            sellOrderUuid: sellerOrder.uuid,
+            price: tradePrice,
+            quantity: tradeQuantity,
+            executedAt: trade.executedAt,
+          });
 
           await Promise.all([
             this.applyTradeToPosition(
@@ -553,6 +576,11 @@ export class OrderService implements OrderServiceContract {
         },
       });
 
+      await Promise.all([
+        this.realtimePublisher.publishMarketBook(order.marketUuid),
+        ...matchedTrades.map((trade) => this.realtimePublisher.publishTrade(trade)),
+      ]);
+
       return mapOrder(order);
     } catch (error) {
       if (error instanceof LedgerError || error instanceof OrderError) {
@@ -716,6 +744,8 @@ export class OrderService implements OrderServiceContract {
         status: canceledOrder.status,
       },
     });
+
+    await this.realtimePublisher.publishMarketBook(canceledOrder.marketUuid);
 
     return mapOrder(canceledOrder);
   }

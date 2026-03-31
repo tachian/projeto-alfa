@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
 import { LedgerService } from "../ledger/service.js";
+import type { RealtimePublisherContract } from "../realtime/publisher.js";
 import { OrderError, OrderService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -67,7 +68,12 @@ describe("OrderService", () => {
     postTransaction: vi.fn(),
   } as unknown as LedgerService;
 
-  const orderService = new OrderService(mockedLedgerService);
+  const mockedRealtimePublisher: RealtimePublisherContract = {
+    publishMarketBook: vi.fn(),
+    publishTrade: vi.fn(),
+  };
+
+  const orderService = new OrderService(mockedLedgerService, mockedRealtimePublisher);
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
@@ -119,6 +125,8 @@ describe("OrderService", () => {
       transaction: { uuid: "ledger-tx-uuid" },
       entries: [],
     } as never);
+    vi.mocked(mockedRealtimePublisher.publishMarketBook).mockResolvedValue();
+    vi.mocked(mockedRealtimePublisher.publishTrade).mockResolvedValue();
     transactionClient.position.findUnique.mockResolvedValue(null as never);
     transactionClient.position.create.mockResolvedValue({
       uuid: "position-uuid",
@@ -184,6 +192,7 @@ describe("OrderService", () => {
         quantity: 10,
       },
     });
+    expect(vi.mocked(mockedRealtimePublisher.publishMarketBook)).toHaveBeenCalledWith(marketFixture.uuid);
   });
 
   it("matches a new buy order against a resting sell order", async () => {
@@ -314,6 +323,16 @@ describe("OrderService", () => {
         skipAuditLog: true,
       }),
     );
+    expect(vi.mocked(mockedRealtimePublisher.publishTrade)).toHaveBeenCalledWith({
+      uuid: "trade-uuid",
+      marketUuid: marketFixture.uuid,
+      buyOrderUuid: orderFixture.uuid,
+      sellOrderUuid: makerSellOrder.uuid,
+      price: 55,
+      quantity: 10,
+      executedAt: undefined,
+    });
+    expect(vi.mocked(mockedRealtimePublisher.publishMarketBook)).toHaveBeenCalledWith(marketFixture.uuid);
   });
 
   it("lists user orders", async () => {
@@ -376,6 +395,7 @@ describe("OrderService", () => {
         skipAuditLog: true,
       }),
     );
+    expect(vi.mocked(mockedRealtimePublisher.publishMarketBook)).toHaveBeenCalledWith(marketFixture.uuid);
   });
 
   it("rejects orders for closed markets", async () => {

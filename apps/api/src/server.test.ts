@@ -45,6 +45,7 @@ describe("buildServer", () => {
       docs: {
         liveness: "/health/live",
         readiness: "/health/ready",
+        realtime: "/realtime",
       },
     });
 
