@@ -62,6 +62,7 @@ const orderFixture = {
 describe("OrderService", () => {
   const mockedLedgerService = {
     ensureUserAccounts: vi.fn(),
+    ensurePlatformAccounts: vi.fn(),
     getAccountBalance: vi.fn(),
     postTransaction: vi.fn(),
   } as unknown as LedgerService;
@@ -85,7 +86,11 @@ describe("OrderService", () => {
     },
     order: {
       create: vi.fn(),
+      findMany: vi.fn(),
       update: vi.fn(),
+    },
+    trade: {
+      create: vi.fn(),
     },
   };
 
@@ -95,6 +100,10 @@ describe("OrderService", () => {
     vi.mocked(mockedLedgerService.ensureUserAccounts).mockResolvedValue({
       available: { uuid: "available-uuid" },
       reserved: { uuid: "reserved-uuid" },
+    } as never);
+    vi.mocked(mockedLedgerService.ensurePlatformAccounts).mockResolvedValue({
+      fee: { uuid: "fee-uuid" },
+      custody: { uuid: "custody-uuid" },
     } as never);
     vi.mocked(mockedLedgerService.getAccountBalance).mockResolvedValue({
       accountUuid: "available-uuid",
@@ -110,6 +119,7 @@ describe("OrderService", () => {
   it("creates an order for an open market and reserves funds", async () => {
     mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
     transactionClient.order.create.mockResolvedValue(orderFixture as never);
+    transactionClient.order.findMany.mockResolvedValue([] as never);
 
     await expect(
       orderService.createOrder({
@@ -162,6 +172,118 @@ describe("OrderService", () => {
         quantity: 10,
       },
     });
+  });
+
+  it("matches a new buy order against a resting sell order", async () => {
+    const makerSellOrder = {
+      uuid: "maker-sell-uuid",
+      userUuid: "maker-user-uuid",
+      marketUuid: marketFixture.uuid,
+      side: "sell",
+      outcome: "YES",
+      orderType: "limit",
+      status: "open",
+      price: 55,
+      quantity: 10,
+      remainingQuantity: 10,
+      createdAt: new Date("2026-03-30T09:00:00.000Z"),
+      canceledAt: null,
+      market: orderFixture.market,
+    };
+    const filledTakerOrder = {
+      ...orderFixture,
+      status: "filled",
+      remainingQuantity: 0,
+    };
+
+    mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
+    transactionClient.order.create.mockResolvedValue(orderFixture as never);
+    transactionClient.order.findMany.mockResolvedValue([makerSellOrder] as never);
+    transactionClient.trade.create.mockResolvedValue({
+      uuid: "trade-uuid",
+    } as never);
+    transactionClient.order.update
+      .mockResolvedValueOnce(filledTakerOrder as never)
+      .mockResolvedValueOnce({
+        ...makerSellOrder,
+        status: "filled",
+        remainingQuantity: 0,
+      } as never);
+    vi.mocked(mockedLedgerService.ensureUserAccounts).mockImplementation(async ({ userUuid }) => {
+      if (userUuid === "maker-user-uuid") {
+        return {
+          available: { uuid: "maker-available-uuid" },
+          reserved: { uuid: "maker-reserved-uuid" },
+        } as never;
+      }
+
+      return {
+        available: { uuid: "available-uuid" },
+        reserved: { uuid: "reserved-uuid" },
+      } as never;
+    });
+
+    await expect(
+      orderService.createOrder({
+        userUuid: "user-uuid",
+        marketUuid: marketFixture.uuid,
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      }),
+    ).resolves.toMatchObject({
+      uuid: orderFixture.uuid,
+      status: "filled",
+      remainingQuantity: 0,
+    });
+
+    expect(transactionClient.trade.create).toHaveBeenCalledWith({
+      data: {
+        marketUuid: marketFixture.uuid,
+        buyOrderUuid: orderFixture.uuid,
+        sellOrderUuid: makerSellOrder.uuid,
+        price: 55,
+        quantity: 10,
+      },
+    });
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        transactionType: "order_reserve",
+      }),
+      expect.objectContaining({
+        skipAuditLog: true,
+      }),
+    );
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        transactionType: "trade_match",
+        referenceType: "trade",
+        referenceUuid: "trade-uuid",
+        entries: [
+          expect.objectContaining({
+            accountUuid: "reserved-uuid",
+            direction: "debit",
+            amount: new Prisma.Decimal("5.5"),
+          }),
+          expect.objectContaining({
+            accountUuid: "maker-reserved-uuid",
+            direction: "debit",
+            amount: new Prisma.Decimal("4.5"),
+          }),
+          expect.objectContaining({
+            accountUuid: "custody-uuid",
+            direction: "credit",
+            amount: new Prisma.Decimal("10"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        skipAuditLog: true,
+      }),
+    );
   });
 
   it("lists user orders", async () => {

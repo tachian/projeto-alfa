@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import type { LedgerEntryDraft } from "../ledger/types.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 
 const DEFAULT_LIST_LIMIT = 50;
@@ -9,6 +10,7 @@ const ORDER_SIDES = ["buy", "sell"] as const;
 const ORDER_OUTCOMES = ["YES", "NO"] as const;
 const ORDER_TYPES = ["limit"] as const;
 const CANCELABLE_ORDER_STATUSES = ["open", "partially_filled"] as const;
+const MATCHABLE_ORDER_STATUSES = ["open", "partially_filled"] as const;
 
 export type OrderRecord = {
   uuid: string;
@@ -163,6 +165,8 @@ const assertMarketCanReceiveOrders = (market: {
   }
 };
 
+const getFilledStatus = (remainingQuantity: number) => (remainingQuantity === 0 ? "filled" : "partially_filled");
+
 export class OrderService implements OrderServiceContract {
   constructor(private readonly ledgerService = new LedgerService()) {}
 
@@ -232,6 +236,46 @@ export class OrderService implements OrderServiceContract {
           },
         });
 
+        const restingOrders = await tx.order.findMany({
+          where: {
+            marketUuid: input.marketUuid,
+            outcome: input.outcome,
+            side: input.side === "buy" ? "sell" : "buy",
+            status: {
+              in: [...MATCHABLE_ORDER_STATUSES],
+            },
+            userUuid: {
+              not: input.userUuid,
+            },
+            ...(input.side === "buy"
+              ? {
+                  price: {
+                    lte: input.price,
+                  },
+                }
+              : {
+                  price: {
+                    gte: input.price,
+                  },
+                }),
+          },
+          include: {
+            market: {
+              select: {
+                uuid: true,
+                slug: true,
+                title: true,
+                status: true,
+                closeAt: true,
+              },
+            },
+          },
+          orderBy:
+            input.side === "buy"
+              ? [{ price: "asc" }, { createdAt: "asc" }]
+              : [{ price: "desc" }, { createdAt: "asc" }],
+        });
+
         await this.ledgerService.postTransaction(
           {
             transactionType: "order_reserve",
@@ -272,7 +316,203 @@ export class OrderService implements OrderServiceContract {
           },
         );
 
-        return createdOrder;
+        let currentOrder = createdOrder;
+
+        for (const restingOrder of restingOrders) {
+          if (currentOrder.remainingQuantity === 0) {
+            break;
+          }
+
+          const tradeQuantity = Math.min(currentOrder.remainingQuantity, restingOrder.remainingQuantity);
+
+          if (tradeQuantity <= 0) {
+            continue;
+          }
+
+          const tradePrice = restingOrder.price;
+          const buyerOrder = currentOrder.side === "buy" ? currentOrder : restingOrder;
+          const sellerOrder = currentOrder.side === "sell" ? currentOrder : restingOrder;
+          const buyerTradeCost = this.calculateReserveAmount({
+            side: "buy",
+            price: tradePrice,
+            quantity: tradeQuantity,
+          });
+          const sellerTradeCost = this.calculateReserveAmount({
+            side: "sell",
+            price: tradePrice,
+            quantity: tradeQuantity,
+          });
+          const buyerReservedAtLimit = this.calculateReserveAmount({
+            side: "buy",
+            price: buyerOrder.price,
+            quantity: tradeQuantity,
+          });
+          const sellerReservedAtLimit = this.calculateReserveAmount({
+            side: "sell",
+            price: sellerOrder.price,
+            quantity: tradeQuantity,
+          });
+          const buyerReleaseAmount = buyerReservedAtLimit.minus(buyerTradeCost);
+          const sellerReleaseAmount = sellerReservedAtLimit.minus(sellerTradeCost);
+
+          const [buyerAccounts, sellerAccounts, platformAccounts] = await Promise.all([
+            this.ledgerService.ensureUserAccounts(
+              {
+                userUuid: buyerOrder.userUuid,
+              },
+              tx,
+            ),
+            this.ledgerService.ensureUserAccounts(
+              {
+                userUuid: sellerOrder.userUuid,
+              },
+              tx,
+            ),
+            this.ledgerService.ensurePlatformAccounts(undefined, tx),
+          ]);
+
+          const trade = await tx.trade.create({
+            data: {
+              marketUuid: input.marketUuid,
+              buyOrderUuid: buyerOrder.uuid,
+              sellOrderUuid: sellerOrder.uuid,
+              price: tradePrice,
+              quantity: tradeQuantity,
+            },
+          });
+
+          const nextCurrentRemaining = currentOrder.remainingQuantity - tradeQuantity;
+          const nextRestingRemaining = restingOrder.remainingQuantity - tradeQuantity;
+
+          currentOrder = await tx.order.update({
+            where: {
+              uuid: currentOrder.uuid,
+            },
+            data: {
+              remainingQuantity: nextCurrentRemaining,
+              status: getFilledStatus(nextCurrentRemaining),
+            },
+            include: {
+              market: {
+                select: {
+                  uuid: true,
+                  slug: true,
+                  title: true,
+                  status: true,
+                  closeAt: true,
+                },
+              },
+            },
+          });
+
+          await tx.order.update({
+            where: {
+              uuid: restingOrder.uuid,
+            },
+            data: {
+              remainingQuantity: nextRestingRemaining,
+              status: getFilledStatus(nextRestingRemaining),
+            },
+          });
+
+          const tradeEntries: [LedgerEntryDraft, LedgerEntryDraft, LedgerEntryDraft, ...LedgerEntryDraft[]] = [
+            {
+              accountUuid: buyerAccounts.reserved.uuid,
+              userUuid: buyerOrder.userUuid,
+              entryType: "trade_matched",
+              amount: buyerTradeCost,
+              direction: "debit" as const,
+              referenceType: "trade",
+              referenceUuid: trade.uuid,
+            },
+            {
+              accountUuid: sellerAccounts.reserved.uuid,
+              userUuid: sellerOrder.userUuid,
+              entryType: "trade_matched",
+              amount: sellerTradeCost,
+              direction: "debit" as const,
+              referenceType: "trade",
+              referenceUuid: trade.uuid,
+            },
+            {
+              accountUuid: platformAccounts.custody.uuid,
+              entryType: "trade_matched",
+              amount: buyerTradeCost.plus(sellerTradeCost),
+              direction: "credit" as const,
+              referenceType: "trade",
+              referenceUuid: trade.uuid,
+            },
+          ];
+
+          if (buyerReleaseAmount.gt(new Prisma.Decimal(0))) {
+            tradeEntries.push(
+              {
+                accountUuid: buyerAccounts.reserved.uuid,
+                userUuid: buyerOrder.userUuid,
+                entryType: "trade_price_improved",
+                amount: buyerReleaseAmount,
+                direction: "debit" as const,
+                referenceType: "trade",
+                referenceUuid: trade.uuid,
+              },
+              {
+                accountUuid: buyerAccounts.available.uuid,
+                userUuid: buyerOrder.userUuid,
+                entryType: "trade_price_improved",
+                amount: buyerReleaseAmount,
+                direction: "credit" as const,
+                referenceType: "trade",
+                referenceUuid: trade.uuid,
+              },
+            );
+          }
+
+          if (sellerReleaseAmount.gt(new Prisma.Decimal(0))) {
+            tradeEntries.push(
+              {
+                accountUuid: sellerAccounts.reserved.uuid,
+                userUuid: sellerOrder.userUuid,
+                entryType: "trade_price_improved",
+                amount: sellerReleaseAmount,
+                direction: "debit" as const,
+                referenceType: "trade",
+                referenceUuid: trade.uuid,
+              },
+              {
+                accountUuid: sellerAccounts.available.uuid,
+                userUuid: sellerOrder.userUuid,
+                entryType: "trade_price_improved",
+                amount: sellerReleaseAmount,
+                direction: "credit" as const,
+                referenceType: "trade",
+                referenceUuid: trade.uuid,
+              },
+            );
+          }
+
+          await this.ledgerService.postTransaction(
+            {
+              transactionType: "trade_match",
+              referenceType: "trade",
+              referenceUuid: trade.uuid,
+              description: "Order matched",
+              metadata: {
+                marketUuid: input.marketUuid,
+                buyOrderUuid: buyerOrder.uuid,
+                sellOrderUuid: sellerOrder.uuid,
+                price: tradePrice,
+                quantity: tradeQuantity,
+              },
+              entries: tradeEntries,
+            },
+            {
+              dbClient: tx,
+              skipAuditLog: true,
+            },
+          );
+        }
+
+        return currentOrder;
       });
 
       await writeAuditLog({
