@@ -52,6 +52,33 @@ const proxyApiRequest = async (input: {
   }
 };
 
+const proxyPublicMarketRequest = async (input: {
+  response: ServerResponse<IncomingMessage>;
+  marketUuid: string;
+  resource?: "book" | "trades";
+  search?: string;
+}) => {
+  const suffix = input.resource ? `/${input.resource}` : "";
+
+  try {
+    const upstreamResponse = await fetch(
+      new URL(`/markets/${input.marketUuid}${suffix}${input.search ?? ""}`, adminConfig.ADMIN_API_URL),
+    );
+    const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+    const payload = await upstreamResponse.text();
+
+    input.response.writeHead(upstreamResponse.status, {
+      "content-type": contentType,
+    });
+    input.response.end(payload);
+  } catch {
+    input.response.writeHead(502, {
+      "content-type": "application/json; charset=utf-8",
+    });
+    input.response.end(JSON.stringify({ message: "Falha ao consultar a API de mercados." }));
+  }
+};
+
 export const createAdminServer = () => createServer(async (request, response) => {
   return handleAdminRequest(request, response);
 });
@@ -99,25 +126,25 @@ export const handleAdminRequest = async (
   }
 
   if (request.method === "GET" && pathname.startsWith("/api/markets/")) {
-    const marketUuid = pathname.replace("/api/markets/", "").trim();
+    const remainder = pathname.replace("/api/markets/", "").trim();
+    const [marketUuid, resource] = remainder.split("/");
 
-    try {
-      const upstreamResponse = await fetch(
-        new URL(`/markets/${marketUuid}`, adminConfig.ADMIN_API_URL),
-      );
-      const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
-      const payload = await upstreamResponse.text();
+    await proxyPublicMarketRequest({
+      response,
+      marketUuid,
+      resource: resource === "book" || resource === "trades" ? resource : undefined,
+      search: requestUrl.search,
+    });
+    return;
+  }
 
-      response.writeHead(upstreamResponse.status, {
-        "content-type": contentType,
-      });
-      response.end(payload);
-    } catch {
-      response.writeHead(502, {
-        "content-type": "application/json; charset=utf-8",
-      });
-      response.end(JSON.stringify({ message: "Falha ao consultar a API de mercados." }));
-    }
+  if (pathname === "/api/orders" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/orders${requestUrl.search}`,
+      method: "GET",
+    });
     return;
   }
 

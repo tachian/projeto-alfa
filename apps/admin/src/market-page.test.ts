@@ -12,5 +12,8 @@ describe("renderMarketPage", () => {
     expect(html).toContain("/api/markets/");
     expect(html).toContain("Fonte Oficial");
     expect(html).toContain("Como este mercado resolve");
+    expect(html).toContain("Order Book");
+    expect(html).toContain("Ultimas execucoes");
+    expect(html).toContain("Ordens do usuario");
   });
 });

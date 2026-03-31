@@ -218,6 +218,52 @@ describe("admin sprint 3 e2e", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
+            orderBook: {
+              marketUuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+              marketStatus: "open",
+              levels: [],
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "trade-uuid",
+                price: 58,
+                quantity: 4,
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "order-uuid",
+                marketUuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+                side: "buy",
+                outcome: "YES",
+                status: "open",
+                price: 58,
+                quantity: 5,
+                remainingQuantity: 5,
+                createdAt: "2026-06-10T14:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
             market: {
               uuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
               status: "closed",
@@ -239,6 +285,9 @@ describe("admin sprint 3 e2e", () => {
     expect(pageHtml).toContain("Editar mercado");
     expect(pageHtml).toContain("Suspender");
     expect(pageHtml).toContain("Fechar");
+    expect(pageHtml).toContain("Order Book");
+    expect(pageHtml).toContain("Ultimas execucoes");
+    expect(pageHtml).toContain("Ordens do usuario");
 
     const detailResponse = await invokeAdminRoute({
       method: "GET",
@@ -250,6 +299,46 @@ describe("admin sprint 3 e2e", () => {
         uuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
         status: "open",
       },
+    });
+
+    const bookResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/book",
+    });
+    expect(bookResponse.status).toBe(200);
+    expect(bookResponse.json()).toMatchObject({
+      orderBook: {
+        marketUuid: "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520",
+      },
+    });
+
+    const tradesResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/trades?limit=20",
+    });
+    expect(tradesResponse.status).toBe(200);
+    expect(tradesResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "trade-uuid",
+        },
+      ],
+    });
+
+    const ordersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/orders?marketUuid=8fbc76f5-3958-4cb5-a7ef-c4bd67b29520&limit=20",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(ordersResponse.status).toBe(200);
+    expect(ordersResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "order-uuid",
+        },
+      ],
     });
 
     const updateResponse = await invokeAdminRoute({
@@ -277,6 +366,24 @@ describe("admin sprint 3 e2e", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
+      new URL("/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/book", "http://localhost:4000"),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/trades?limit=20", "http://localhost:4000"),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      new URL("/orders?marketUuid=8fbc76f5-3958-4cb5-a7ef-c4bd67b29520&limit=20", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
       new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520", "http://localhost:4000"),
       expect.objectContaining({
         method: "PATCH",

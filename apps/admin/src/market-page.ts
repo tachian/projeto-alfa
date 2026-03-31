@@ -17,7 +17,7 @@ export const renderMarketPage = (input: {
     <style>
       :root {
         --bg: #f4efe6;
-        --panel: rgba(255, 251, 245, 0.86);
+        --panel: rgba(255, 251, 245, 0.9);
         --panel-strong: #fffaf3;
         --ink: #1b1510;
         --muted: #6d5f4f;
@@ -26,6 +26,7 @@ export const renderMarketPage = (input: {
         --accent-soft: #efc7ae;
         --success: #276749;
         --warning: #8a5b17;
+        --danger: #8c2f1c;
         --shadow: 0 24px 80px rgba(68, 42, 18, 0.14);
       }
 
@@ -45,21 +46,25 @@ export const renderMarketPage = (input: {
       }
 
       .shell {
-        width: min(1120px, calc(100% - 32px));
+        width: min(1280px, calc(100% - 32px));
         margin: 0 auto;
         padding: 40px 0 64px;
+      }
+
+      .hero,
+      .panel {
+        border-radius: 26px;
+        border: 1px solid rgba(98, 60, 28, 0.12);
+        background:
+          linear-gradient(135deg, rgba(255, 251, 245, 0.96), rgba(248, 232, 214, 0.88)),
+          var(--panel);
+        box-shadow: var(--shadow);
       }
 
       .hero {
         position: relative;
         overflow: hidden;
         padding: 32px;
-        border: 1px solid rgba(98, 60, 28, 0.12);
-        border-radius: 28px;
-        background:
-          linear-gradient(135deg, rgba(255, 251, 245, 0.96), rgba(248, 232, 214, 0.88)),
-          var(--panel);
-        box-shadow: var(--shadow);
       }
 
       .hero::after {
@@ -73,17 +78,9 @@ export const renderMarketPage = (input: {
         pointer-events: none;
       }
 
-      .eyebrow {
-        font-size: 0.8rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      h1, h2 {
+      h1, h2, h3 {
         margin: 0;
         font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
-        font-weight: 700;
         letter-spacing: -0.03em;
       }
 
@@ -92,6 +89,17 @@ export const renderMarketPage = (input: {
         font-size: clamp(2.4rem, 5vw, 4.5rem);
         line-height: 0.92;
         max-width: 12ch;
+      }
+
+      h2 {
+        font-size: 1.65rem;
+      }
+
+      .eyebrow {
+        font-size: 0.8rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
       }
 
       .subtitle {
@@ -108,19 +116,18 @@ export const renderMarketPage = (input: {
         color: var(--muted);
       }
 
-      .grid {
+      .layout {
         display: grid;
-        grid-template-columns: 1.45fr 0.95fr;
+        grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
         gap: 18px;
         margin-top: 22px;
+        align-items: start;
       }
 
-      .panel {
-        border-radius: 24px;
-        border: 1px solid var(--line);
-        background: var(--panel);
-        backdrop-filter: blur(12px);
-        box-shadow: 0 18px 48px rgba(74, 47, 23, 0.08);
+      .left-column,
+      .right-column {
+        display: grid;
+        gap: 18px;
       }
 
       .panel-body {
@@ -134,10 +141,16 @@ export const renderMarketPage = (input: {
         margin-top: 18px;
       }
 
+      .trading-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
       .stat {
         padding: 16px;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.58);
+        background: rgba(255, 255, 255, 0.62);
         border: 1px solid rgba(76, 51, 24, 0.08);
       }
 
@@ -166,15 +179,25 @@ export const renderMarketPage = (input: {
         font-weight: 600;
       }
 
-      .pill[data-status="open"] {
+      .pill[data-status="open"],
+      .pill[data-status="connected"] {
         color: var(--success);
         background: rgba(39, 103, 73, 0.12);
       }
 
       .pill[data-status="draft"],
-      .pill[data-status="suspended"] {
+      .pill[data-status="suspended"],
+      .pill[data-status="connecting"] {
         color: var(--warning);
         background: rgba(138, 91, 23, 0.12);
+      }
+
+      .pill[data-status="closed"],
+      .pill[data-status="resolved"],
+      .pill[data-status="cancelled"],
+      .pill[data-status="offline"] {
+        color: var(--danger);
+        background: rgba(140, 47, 28, 0.12);
       }
 
       .section-copy {
@@ -193,37 +216,62 @@ export const renderMarketPage = (input: {
         border-bottom-color: rgba(177, 77, 45, 0.7);
       }
 
-      .loading {
-        display: grid;
-        place-items: center;
-        min-height: 240px;
+      .table-wrap {
+        margin-top: 16px;
+        overflow: auto;
+        border-radius: 18px;
+        border: 1px solid rgba(76, 51, 24, 0.08);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        text-align: left;
+        border-bottom: 1px solid rgba(76, 51, 24, 0.08);
+        font-size: 0.94rem;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        position: sticky;
+        top: 0;
+        background: rgba(255, 248, 241, 0.98);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .row-buy td:first-child,
+      .row-buy td:nth-child(2) {
+        color: var(--success);
+      }
+
+      .row-sell td:first-child,
+      .row-sell td:nth-child(2) {
+        color: var(--danger);
+      }
+
+      .empty-state {
+        padding: 18px;
         color: var(--muted);
       }
 
-      .loading::after {
-        content: "";
-        width: 40px;
-        height: 40px;
-        border-radius: 999px;
-        border: 3px solid rgba(177, 77, 45, 0.14);
-        border-top-color: var(--accent);
-        animation: spin 1s linear infinite;
-        margin-top: 14px;
-      }
-
-      .error-card {
-        margin-top: 22px;
-        padding: 18px 20px;
-        border-radius: 18px;
-        border: 1px solid rgba(154, 44, 26, 0.14);
-        background: rgba(255, 241, 236, 0.8);
-        color: #7f2d18;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
+      .status-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-top: 18px;
       }
 
       .admin-toolbar {
@@ -233,11 +281,14 @@ export const renderMarketPage = (input: {
         margin-top: 18px;
       }
 
-      textarea, input, button {
+      textarea,
+      input,
+      button {
         font: inherit;
       }
 
-      textarea, input {
+      textarea,
+      input {
         width: 100%;
         padding: 12px 14px;
         border-radius: 16px;
@@ -302,27 +353,36 @@ export const renderMarketPage = (input: {
 
       .admin-status[data-tone="danger"] {
         background: rgba(154, 44, 26, 0.12);
-        color: #7f2d18;
+        color: var(--danger);
       }
 
-      @media (max-width: 860px) {
-        .grid {
-          grid-template-columns: 1fr;
-        }
+      .loading,
+      .error-card {
+        margin-top: 22px;
+        padding: 18px 20px;
+        border-radius: 18px;
+      }
 
-        .hero {
-          padding: 24px;
-        }
+      .loading {
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        min-height: 200px;
+        border: 1px solid rgba(76, 51, 24, 0.08);
+        background: rgba(255, 255, 255, 0.62);
+      }
 
-        .panel-body {
-          padding: 20px;
-        }
+      .error-card {
+        border: 1px solid rgba(154, 44, 26, 0.14);
+        background: rgba(255, 241, 236, 0.8);
+        color: var(--danger);
+      }
 
+      @media (max-width: 1060px) {
+        .layout,
+        .trading-grid,
+        .form-grid.two,
         .meta-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .form-grid.two {
           grid-template-columns: 1fr;
         }
       }
@@ -334,120 +394,205 @@ export const renderMarketPage = (input: {
         <div class="eyebrow">${safeAppName}</div>
         <h1 id="market-title">Carregando mercado</h1>
         <p class="subtitle" id="market-subtitle">
-          Estamos buscando as regras, a fonte oficial e o estado atual deste mercado.
+          Estamos preparando a leitura completa do contrato, do book e das ultimas execucoes.
         </p>
         <div class="market-id">UUID do mercado: <strong>${safeMarketUuid}</strong></div>
       </section>
 
-      <div id="market-state" class="loading">Montando a ficha completa do mercado...</div>
-      <section id="market-layout" class="grid" hidden>
-        <article class="panel">
-          <div class="panel-body">
-            <span class="pill" id="market-status-pill">status</span>
-            <div class="meta-grid">
-              <div class="stat">
-                <div class="stat-label">Categoria</div>
-                <div class="stat-value" id="market-category">-</div>
+      <div id="market-state" class="loading">Buscando mercado, book e execucoes recentes...</div>
+
+      <section id="market-layout" class="layout" hidden>
+        <div class="left-column">
+          <article class="panel">
+            <div class="panel-body">
+              <div class="status-stack">
+                <span class="pill" id="market-status-pill">status</span>
+                <span class="pill" id="socket-status-pill" data-status="connecting">tempo real</span>
               </div>
-              <div class="stat">
-                <div class="stat-label">Tipo</div>
-                <div class="stat-value" id="market-outcome-type">-</div>
-              </div>
-              <div class="stat">
-                <div class="stat-label">Abre</div>
-                <div class="stat-value" id="market-open-at">-</div>
-              </div>
-              <div class="stat">
-                <div class="stat-label">Fecha</div>
-                <div class="stat-value" id="market-close-at">-</div>
+              <div class="meta-grid">
+                <div class="stat">
+                  <div class="stat-label">Categoria</div>
+                  <div class="stat-value" id="market-category">-</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Tipo</div>
+                  <div class="stat-value" id="market-outcome-type">-</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Abre</div>
+                  <div class="stat-value" id="market-open-at">-</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-label">Fecha</div>
+                  <div class="stat-value" id="market-close-at">-</div>
+                </div>
               </div>
             </div>
-          </div>
-        </article>
+          </article>
 
-        <aside class="panel">
-          <div class="panel-body">
-            <div class="eyebrow">Contrato</div>
-            <h2 id="market-contract-value">$ 0,00</h2>
-            <p class="section-copy" id="market-contract-copy">
-              Cada contrato liquida conforme as regras oficiais abaixo.
-            </p>
-            <div class="admin-toolbar">
-              <button type="button" id="save-token" class="secondary">Salvar token</button>
-              <button type="button" id="suspend-market">Suspender</button>
-              <button type="button" id="close-market" class="warning">Fechar</button>
-            </div>
-          </div>
-        </aside>
-
-        <article class="panel">
-          <div class="panel-body">
-            <div class="eyebrow">Fonte Oficial</div>
-            <h2 id="market-source-label">-</h2>
-            <p class="section-copy">
-              A resolução depende exclusivamente da fonte oficial configurada para este mercado.
-            </p>
-            <a id="market-source-url" class="source-link" href="#" target="_blank" rel="noreferrer">
-              Abrir fonte oficial
-            </a>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-body">
-            <div class="eyebrow">Operacao</div>
-            <h2>Editar mercado</h2>
-            <p class="section-copy">A ficha publica continua visivel, mas aqui voce tambem pode ajustar o cadastro administrativo e trocar o estado do mercado.</p>
-            <div class="form-grid">
-              <label class="field-label">
-                Bearer token
-                <textarea id="auth-token" placeholder="Cole aqui o access token do admin"></textarea>
-              </label>
-            </div>
-            <form id="market-form" class="form-grid">
-              <label class="field-label">Titulo<input name="title" required /></label>
-              <div class="form-grid two">
-                <label class="field-label">Slug<input name="slug" required /></label>
-                <label class="field-label">Categoria<input name="category" required /></label>
+          <section class="trading-grid">
+            <article class="panel">
+              <div class="panel-body">
+                <div class="eyebrow">Order Book</div>
+                <h2>Liquidez por nivel</h2>
+                <p class="section-copy">O book combina as ordens abertas e parcialmente executadas do mercado.</p>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Lado</th>
+                        <th>Resultado</th>
+                        <th>Preco</th>
+                        <th>Quantidade</th>
+                        <th>Ordens</th>
+                      </tr>
+                    </thead>
+                    <tbody id="order-book-body">
+                      <tr><td colspan="5" class="empty-state">Sem niveis de book neste momento.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div class="form-grid two">
-                <label class="field-label">Status
-                  <input name="status" required />
+            </article>
+
+            <article class="panel">
+              <div class="panel-body">
+                <div class="eyebrow">Tape</div>
+                <h2>Ultimas execucoes</h2>
+                <p class="section-copy">Cada negocio entra aqui assim que o matching engine confirma a execucao.</p>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Horario</th>
+                        <th>Preco</th>
+                        <th>Quantidade</th>
+                        <th>Trade</th>
+                      </tr>
+                    </thead>
+                    <tbody id="recent-trades-body">
+                      <tr><td colspan="4" class="empty-state">Nenhuma execucao recente.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Minha atividade</div>
+              <h2>Ordens do usuario</h2>
+              <p class="section-copy">Cole um bearer token valido para ver apenas as suas ordens neste mercado.</p>
+              <div class="admin-toolbar">
+                <button type="button" id="refresh-orders" class="secondary">Atualizar ordens</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Lado</th>
+                      <th>Resultado</th>
+                      <th>Status</th>
+                      <th>Preco</th>
+                      <th>Qtd</th>
+                      <th>Restante</th>
+                      <th>Criada em</th>
+                    </tr>
+                  </thead>
+                  <tbody id="user-orders-body">
+                    <tr><td colspan="7" class="empty-state">As ordens aparecem aqui depois do login.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Regras</div>
+              <h2>Como este mercado resolve</h2>
+              <p class="section-copy" id="market-rules">-</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="right-column">
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Contrato</div>
+              <h2 id="market-contract-value">$ 0,00</h2>
+              <p class="section-copy" id="market-contract-copy">
+                Cada contrato liquida conforme as regras oficiais abaixo.
+              </p>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Fonte Oficial</div>
+              <h2 id="market-source-label">-</h2>
+              <p class="section-copy">
+                A resolucao depende exclusivamente da fonte oficial configurada para este mercado.
+              </p>
+              <a id="market-source-url" class="source-link" href="#" target="_blank" rel="noreferrer">
+                Abrir fonte oficial
+              </a>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-body">
+              <div class="eyebrow">Operacao</div>
+              <h2>Editar mercado</h2>
+              <p class="section-copy">A ficha publica continua visivel, mas aqui voce tambem pode ajustar o cadastro administrativo e trocar o estado do mercado.</p>
+              <div class="form-grid">
+                <label class="field-label">
+                  Bearer token
+                  <textarea id="auth-token" placeholder="Cole aqui o access token do admin"></textarea>
                 </label>
-                <label class="field-label">Tipo
-                  <input name="outcomeType" required />
-                </label>
               </div>
-              <div class="form-grid two">
-                <label class="field-label">Tick size<input name="tickSize" type="number" min="1" step="1" required /></label>
-                <label class="field-label">Valor do contrato<input name="contractValue" type="number" min="0.01" step="0.01" required /></label>
+              <div class="admin-toolbar">
+                <button type="button" id="save-token" class="secondary">Salvar token</button>
+                <button type="button" id="suspend-market">Suspender</button>
+                <button type="button" id="close-market" class="warning">Fechar</button>
               </div>
-              <div class="form-grid two">
-                <label class="field-label">Abre em<input name="openAt" type="datetime-local" /></label>
-                <label class="field-label">Fecha em<input name="closeAt" type="datetime-local" required /></label>
-              </div>
-              <label class="field-label">Fonte oficial<input name="officialSourceLabel" required /></label>
-              <label class="field-label">URL da fonte oficial<input name="officialSourceUrl" type="url" required /></label>
-              <label class="field-label">Regras de resolucao<textarea name="resolutionRules" required></textarea></label>
-              <button type="submit" id="save-market">Salvar alteracoes</button>
-            </form>
-            <div id="admin-status" class="admin-status">Cole um token valido para editar, suspender ou fechar este mercado.</div>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-body">
-            <div class="eyebrow">Regras</div>
-            <h2>Como este mercado resolve</h2>
-            <p class="section-copy" id="market-rules">-</p>
-          </div>
-        </article>
+              <form id="market-form" class="form-grid">
+                <label class="field-label">Titulo<input name="title" required /></label>
+                <div class="form-grid two">
+                  <label class="field-label">Slug<input name="slug" required /></label>
+                  <label class="field-label">Categoria<input name="category" required /></label>
+                </div>
+                <div class="form-grid two">
+                  <label class="field-label">Status<input name="status" required /></label>
+                  <label class="field-label">Tipo<input name="outcomeType" required /></label>
+                </div>
+                <div class="form-grid two">
+                  <label class="field-label">Tick size<input name="tickSize" type="number" min="1" step="1" required /></label>
+                  <label class="field-label">Valor do contrato<input name="contractValue" type="number" min="0.01" step="0.01" required /></label>
+                </div>
+                <div class="form-grid two">
+                  <label class="field-label">Abre em<input name="openAt" type="datetime-local" /></label>
+                  <label class="field-label">Fecha em<input name="closeAt" type="datetime-local" required /></label>
+                </div>
+                <label class="field-label">Fonte oficial<input name="officialSourceLabel" required /></label>
+                <label class="field-label">URL da fonte oficial<input name="officialSourceUrl" type="url" required /></label>
+                <label class="field-label">Regras de resolucao<textarea name="resolutionRules" required></textarea></label>
+                <button type="submit" id="save-market">Salvar alteracoes</button>
+              </form>
+              <div id="admin-status" class="admin-status">Cole um token valido para editar, suspender, fechar ou listar suas ordens.</div>
+            </div>
+          </article>
+        </div>
       </section>
     </main>
 
     <script>
       const marketUuid = ${JSON.stringify(input.marketUuid)};
       const tokenStorageKey = "projeto-alfa.admin.token";
+      let recentTrades = [];
+      let liveSocket = null;
+
       const formatDate = (value) => {
         if (!value) return "Nao definido";
         return new Intl.DateTimeFormat("pt-BR", {
@@ -476,15 +621,23 @@ export const renderMarketPage = (input: {
         node.dataset.tone = tone;
       };
 
+      const setSocketStatus = (status, label) => {
+        const node = document.getElementById("socket-status-pill");
+        node.dataset.status = status;
+        node.textContent = label;
+      };
+
       const getToken = () => document.getElementById("auth-token").value.trim();
+
       const getHeaders = () => {
         const token = getToken();
         return token ? { Authorization: "Bearer " + token } : {};
       };
 
-      const saveToken = () => {
+      const saveToken = async () => {
         localStorage.setItem(tokenStorageKey, getToken());
         setAdminStatus("Token salvo no navegador.", "success");
+        await loadUserOrders();
       };
 
       const fetchJson = async (url, options = {}) => {
@@ -507,16 +660,71 @@ export const renderMarketPage = (input: {
         return payload;
       };
 
+      const renderRows = (bodyId, emptyMessage, rows) => {
+        const tbody = document.getElementById(bodyId);
+
+        if (!rows.length) {
+          const colSpan = bodyId === "user-orders-body" ? 7 : bodyId === "order-book-body" ? 5 : 4;
+          tbody.innerHTML = "<tr><td colspan=\\"" + colSpan + "\\" class=\\"empty-state\\">" + emptyMessage + "</td></tr>";
+          return;
+        }
+
+        tbody.innerHTML = rows.join("");
+      };
+
+      const renderOrderBook = (orderBook) => {
+        const rows = orderBook.levels.map((level) =>
+          "<tr class=\\"row-" + level.side + "\\">" +
+            "<td>" + level.side + "</td>" +
+            "<td>" + level.outcome + "</td>" +
+            "<td>" + level.price + "c</td>" +
+            "<td>" + level.quantity + "</td>" +
+            "<td>" + level.orderCount + "</td>" +
+          "</tr>"
+        );
+
+        renderRows("order-book-body", "Sem niveis de book neste momento.", rows);
+      };
+
+      const renderTrades = (trades) => {
+        recentTrades = trades.slice(0, 20);
+        const rows = recentTrades.map((trade) =>
+          "<tr>" +
+            "<td>" + formatDate(trade.executedAt) + "</td>" +
+            "<td>" + trade.price + "c</td>" +
+            "<td>" + trade.quantity + "</td>" +
+            "<td><code>" + trade.uuid + "</code></td>" +
+          "</tr>"
+        );
+
+        renderRows("recent-trades-body", "Nenhuma execucao recente.", rows);
+      };
+
+      const renderUserOrders = (orders) => {
+        const rows = orders.map((order) =>
+          "<tr class=\\"row-" + order.side + "\\">" +
+            "<td>" + order.side + "</td>" +
+            "<td>" + order.outcome + "</td>" +
+            "<td>" + order.status + "</td>" +
+            "<td>" + order.price + "c</td>" +
+            "<td>" + order.quantity + "</td>" +
+            "<td>" + order.remainingQuantity + "</td>" +
+            "<td>" + formatDate(order.createdAt) + "</td>" +
+          "</tr>"
+        );
+
+        renderRows("user-orders-body", "Nenhuma ordem encontrada para este usuario neste mercado.", rows);
+      };
+
       const fillMarket = (market) => {
         document.getElementById("market-title").textContent = market.title;
         document.getElementById("market-subtitle").textContent =
-          "Uma leitura clara do contrato, do estado atual e da fonte oficial usada na resolucao.";
+          "Uma leitura clara do contrato, do estado atual, do book e das ultimas execucoes do mercado.";
         document.getElementById("market-category").textContent = market.category;
         document.getElementById("market-outcome-type").textContent = market.outcomeType;
         document.getElementById("market-open-at").textContent = formatDate(market.openAt);
         document.getElementById("market-close-at").textContent = formatDate(market.closeAt);
-        document.getElementById("market-contract-value").textContent =
-          "$ " + market.contractValue + " por contrato";
+        document.getElementById("market-contract-value").textContent = "$ " + market.contractValue + " por contrato";
         document.getElementById("market-contract-copy").textContent =
           "Tick size de " + market.tickSize + " centavo(s), estado " + market.status + ".";
         document.getElementById("market-source-label").textContent = market.rules.officialSourceLabel;
@@ -546,17 +754,41 @@ export const renderMarketPage = (input: {
         document.getElementById("market-layout").hidden = false;
       };
 
-      const loadMarket = () =>
-        fetch("/api/markets/" + marketUuid)
-          .then(async (response) => {
-            if (!response.ok) {
-              throw new Error("Nao foi possivel carregar o mercado.");
-            }
+      const loadMarket = async () => {
+        const response = await fetch("/api/markets/" + marketUuid);
 
-            return response.json();
-          })
-          .then((payload) => fillMarket(payload.market))
-          .catch((error) => setError(error.message));
+        if (!response.ok) {
+          throw new Error("Nao foi possivel carregar o mercado.");
+        }
+
+        const payload = await response.json();
+        fillMarket(payload.market);
+      };
+
+      const loadOrderBook = async () => {
+        const payload = await fetchJson("/api/markets/" + marketUuid + "/book");
+        renderOrderBook(payload.orderBook);
+      };
+
+      const loadRecentTrades = async () => {
+        const payload = await fetchJson("/api/markets/" + marketUuid + "/trades?limit=20");
+        renderTrades(payload.items ?? []);
+      };
+
+      const loadUserOrders = async () => {
+        if (!getToken()) {
+          renderUserOrders([]);
+          return;
+        }
+
+        try {
+          const payload = await fetchJson("/api/orders?marketUuid=" + encodeURIComponent(marketUuid) + "&limit=20");
+          renderUserOrders(payload.items ?? []);
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+          renderUserOrders([]);
+        }
+      };
 
       const submitUpdate = async (override = {}) => {
         const form = document.getElementById("market-form");
@@ -591,8 +823,54 @@ export const renderMarketPage = (input: {
         }
       };
 
+      const connectRealtime = () => {
+        if (liveSocket) {
+          liveSocket.close();
+        }
+
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const socketUrl = protocol + "//" + window.location.host.replace(":3000", ":4000") + "/realtime";
+        liveSocket = new WebSocket(socketUrl);
+        setSocketStatus("connecting", "Conectando realtime");
+
+        liveSocket.addEventListener("open", () => {
+          setSocketStatus("connected", "Realtime conectado");
+          liveSocket.send(JSON.stringify({ action: "subscribe", channel: "market:" + marketUuid + ":book" }));
+          liveSocket.send(JSON.stringify({ action: "subscribe", channel: "market:" + marketUuid + ":trades" }));
+        });
+
+        liveSocket.addEventListener("message", (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+
+            if (payload.type !== "event") {
+              return;
+            }
+
+            if (payload.channel === "market:" + marketUuid + ":book" && payload.payload?.orderBook) {
+              renderOrderBook(payload.payload.orderBook);
+            }
+
+            if (payload.channel === "market:" + marketUuid + ":trades" && payload.payload?.trade) {
+              renderTrades([payload.payload.trade, ...recentTrades]);
+            }
+          } catch {
+            setSocketStatus("offline", "Realtime com payload invalido");
+          }
+        });
+
+        liveSocket.addEventListener("close", () => {
+          setSocketStatus("offline", "Realtime desconectado");
+        });
+
+        liveSocket.addEventListener("error", () => {
+          setSocketStatus("offline", "Realtime indisponivel");
+        });
+      };
+
       document.getElementById("auth-token").value = localStorage.getItem(tokenStorageKey) ?? "";
       document.getElementById("save-token").addEventListener("click", saveToken);
+      document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
       document.getElementById("market-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         await submitUpdate();
@@ -604,7 +882,9 @@ export const renderMarketPage = (input: {
         await submitUpdate({ status: "closed" });
       });
 
-      loadMarket();
+      Promise.all([loadMarket(), loadOrderBook(), loadRecentTrades(), loadUserOrders()])
+        .then(() => connectRealtime())
+        .catch((error) => setError(error.message));
     </script>
   </body>
 </html>`;

@@ -14,6 +14,10 @@ const marketUuidParamSchema = z.object({
   marketUuid: z.string().uuid(),
 });
 
+const listTradesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 export const buildMarketCatalogRoutes = (
   marketCatalogService: MarketCatalogServiceContract = new MarketCatalogService(),
 ): FastifyPluginAsync => {
@@ -64,6 +68,29 @@ export const buildMarketCatalogRoutes = (
 
         return {
           orderBook: await marketCatalogService.getOrderBook(params.marketUuid),
+        };
+      } catch (error) {
+        if (error instanceof MarketCatalogError) {
+          reply.code(error.statusCode);
+
+          return {
+            message: error.message,
+          };
+        }
+
+        throw error;
+      }
+    });
+
+    fastify.get("/markets/:marketUuid/trades", async (request, reply) => {
+      try {
+        const params = marketUuidParamSchema.parse(request.params);
+        const query = listTradesQuerySchema.parse(request.query);
+
+        return {
+          items: await marketCatalogService.getTrades(params.marketUuid, {
+            limit: query.limit,
+          }),
         };
       } catch (error) {
         if (error instanceof MarketCatalogError) {

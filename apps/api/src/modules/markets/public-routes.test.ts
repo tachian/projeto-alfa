@@ -59,6 +59,7 @@ describe("market catalog routes", () => {
     listMarkets: vi.fn(),
     getMarket: vi.fn(),
     getOrderBook: vi.fn(),
+    getTrades: vi.fn(),
   };
 
   beforeEach(() => {
@@ -160,6 +161,45 @@ describe("market catalog routes", () => {
           },
         ],
       },
+    });
+  });
+
+  it("returns the latest market trades publicly", async () => {
+    vi.mocked(marketCatalogService.getTrades).mockResolvedValue([
+      {
+        uuid: "trade-uuid",
+        marketUuid: marketRecord.uuid,
+        buyOrderUuid: "buy-order-uuid",
+        sellOrderUuid: "sell-order-uuid",
+        price: 58,
+        quantity: 4,
+        executedAt: new Date("2026-06-10T14:00:00.000Z"),
+      },
+    ]);
+
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      marketCatalogService,
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/markets/${marketRecord.uuid}/trades?limit=10`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(marketCatalogService.getTrades)).toHaveBeenCalledWith(marketRecord.uuid, {
+      limit: 10,
+    });
+    expect(response.json()).toMatchObject({
+      items: [
+        {
+          uuid: "trade-uuid",
+          marketUuid: marketRecord.uuid,
+          price: 58,
+          quantity: 4,
+        },
+      ],
     });
   });
 });

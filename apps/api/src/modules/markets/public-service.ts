@@ -48,10 +48,21 @@ export type MarketOrderBookRecord = {
   levels: OrderBookLevel[];
 };
 
+export type MarketTradeRecord = {
+  uuid: string;
+  marketUuid: string;
+  buyOrderUuid: string;
+  sellOrderUuid: string;
+  price: number;
+  quantity: number;
+  executedAt: Date;
+};
+
 export interface MarketCatalogServiceContract {
   listMarkets(input?: ListPublicMarketsInput): Promise<PublicMarketRecord[]>;
   getMarket(marketUuid: string): Promise<PublicMarketRecord>;
   getOrderBook(marketUuid: string): Promise<MarketOrderBookRecord>;
+  getTrades(marketUuid: string, input?: { limit?: number }): Promise<MarketTradeRecord[]>;
 }
 
 export class MarketCatalogError extends Error {
@@ -179,5 +190,42 @@ export class MarketCatalogService implements MarketCatalogServiceContract {
         orderCount: level._count._all,
       })),
     };
+  }
+
+  async getTrades(marketUuid: string, input: { limit?: number } = {}): Promise<MarketTradeRecord[]> {
+    const market = await prisma.market.findUnique({
+      where: {
+        uuid: marketUuid,
+      },
+      select: {
+        uuid: true,
+      },
+    });
+
+    if (!market) {
+      throw new MarketCatalogError("Mercado nao encontrado.", 404);
+    }
+
+    const trades = await prisma.trade.findMany({
+      where: {
+        marketUuid,
+      },
+      orderBy: [
+        {
+          executedAt: "desc",
+        },
+      ],
+      take: input.limit ?? 20,
+    });
+
+    return trades.map((trade) => ({
+      uuid: trade.uuid,
+      marketUuid: trade.marketUuid,
+      buyOrderUuid: trade.buyOrderUuid,
+      sellOrderUuid: trade.sellOrderUuid,
+      price: trade.price,
+      quantity: trade.quantity,
+      executedAt: trade.executedAt,
+    }));
   }
 }

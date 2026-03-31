@@ -12,6 +12,9 @@ vi.mock("../../lib/prisma.js", () => ({
     order: {
       groupBy: vi.fn(),
     },
+    trade: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -145,5 +148,34 @@ describe("MarketCatalogService", () => {
         },
       ],
     });
+  });
+
+  it("returns the latest trades for a market", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue({
+      uuid: marketFixture.uuid,
+    } as never);
+    mockedPrisma.trade.findMany.mockResolvedValue([
+      {
+        uuid: "trade-uuid",
+        marketUuid: marketFixture.uuid,
+        buyOrderUuid: "buy-order-uuid",
+        sellOrderUuid: "sell-order-uuid",
+        price: 58,
+        quantity: 4,
+        executedAt: new Date("2026-06-10T14:00:00.000Z"),
+      },
+    ] as never);
+
+    await expect(marketCatalogService.getTrades(marketFixture.uuid, { limit: 10 })).resolves.toEqual([
+      {
+        uuid: "trade-uuid",
+        marketUuid: marketFixture.uuid,
+        buyOrderUuid: "buy-order-uuid",
+        sellOrderUuid: "sell-order-uuid",
+        price: 58,
+        quantity: 4,
+        executedAt: new Date("2026-06-10T14:00:00.000Z"),
+      },
+    ]);
   });
 });
