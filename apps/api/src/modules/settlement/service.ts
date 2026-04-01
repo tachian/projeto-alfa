@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { LedgerService } from "../ledger/service.js";
+import { writeAuditLog } from "../../lib/audit.js";
 
 export type MarketResolutionRecord = {
   uuid: string;
@@ -64,6 +66,7 @@ export interface SettlementServiceContract {
   createSettlementRun(input: CreateSettlementRunInput): Promise<SettlementRunRecord>;
   updateSettlementRun(input: UpdateSettlementRunInput): Promise<SettlementRunRecord>;
   listSettlementRuns(marketUuid: string): Promise<SettlementRunRecord[]>;
+  executeSettlementRun(input: { settlementRunUuid: string; executedByUserUuid?: string | null }): Promise<SettlementRunRecord>;
 }
 
 export class SettlementError extends Error {
@@ -150,6 +153,10 @@ const mapSettlementRun = (run: {
 });
 
 export class SettlementService implements SettlementServiceContract {
+  constructor(
+    private readonly ledgerService = new LedgerService(),
+  ) {}
+
   async createMarketResolution(input: CreateMarketResolutionInput): Promise<MarketResolutionRecord> {
     try {
       const resolution = await prisma.$transaction(async (tx) => {
@@ -281,5 +288,165 @@ export class SettlementService implements SettlementServiceContract {
     });
 
     return runs.map(mapSettlementRun);
+  }
+
+  async executeSettlementRun(input: {
+    settlementRunUuid: string;
+    executedByUserUuid?: string | null;
+  }): Promise<SettlementRunRecord> {
+    const run = await prisma.settlementRun.findUnique({
+      where: {
+        uuid: input.settlementRunUuid,
+      },
+      include: {
+        market: {
+          select: {
+            uuid: true,
+            contractValue: true,
+          },
+        },
+        marketResolution: {
+          select: {
+            uuid: true,
+            status: true,
+            winningOutcome: true,
+          },
+        },
+      },
+    });
+
+    if (!run) {
+      throw new SettlementError("Settlement run nao encontrado.", 404);
+    }
+
+    if (run.marketResolution.status !== "resolved" || !run.marketResolution.winningOutcome) {
+      throw new SettlementError("A resolucao precisa estar marcada como resolved com resultado vencedor.", 400);
+    }
+
+    const contractValue = new Prisma.Decimal(run.market.contractValue);
+    const settlementPriceForWinningOutcome = contractValue.mul(100);
+
+    const settledRun = await prisma.$transaction(async (tx) => {
+      const platformAccounts = await this.ledgerService.ensurePlatformAccounts(undefined, tx);
+      const positions = await tx.position.findMany({
+        where: {
+          marketUuid: run.marketUuid,
+          netQuantity: {
+            not: 0,
+          },
+        },
+      });
+
+      let totalPayout = new Prisma.Decimal(0);
+
+      for (const position of positions) {
+        const quantity = Math.abs(position.netQuantity);
+        const averageEntryPrice = new Prisma.Decimal(position.averageEntryPrice);
+        const realizedPnl = new Prisma.Decimal(position.realizedPnl);
+        const contractSettlesAt =
+          position.outcome === run.marketResolution.winningOutcome ? settlementPriceForWinningOutcome : new Prisma.Decimal(0);
+        const settlementPnl =
+          position.netQuantity > 0
+            ? contractSettlesAt.minus(averageEntryPrice).mul(quantity).div(100)
+            : averageEntryPrice.minus(contractSettlesAt).mul(quantity).div(100);
+        const nextRealizedPnl = realizedPnl.plus(settlementPnl);
+        const isWinningPosition =
+          (position.netQuantity > 0 && position.outcome === run.marketResolution.winningOutcome) ||
+          (position.netQuantity < 0 && position.outcome !== run.marketResolution.winningOutcome);
+
+        if (isWinningPosition) {
+          const payoutAmount = contractValue.mul(quantity);
+          const userAccounts = await this.ledgerService.ensureUserAccounts(
+            {
+              userUuid: position.userUuid,
+            },
+            tx,
+          );
+
+          await this.ledgerService.postTransaction(
+            {
+              transactionType: "market_settlement_payout",
+              referenceType: "settlement_run",
+              referenceUuid: run.uuid,
+              description: "Market settlement payout",
+              metadata: {
+                marketUuid: run.marketUuid,
+                marketResolutionUuid: run.marketResolutionUuid,
+                winningOutcome: run.marketResolution.winningOutcome,
+                positionUuid: position.uuid,
+                outcome: position.outcome,
+                quantity,
+              },
+              entries: [
+                {
+                  accountUuid: platformAccounts.custody.uuid,
+                  entryType: "market_settlement",
+                  amount: payoutAmount,
+                  direction: "debit",
+                  referenceType: "settlement_run",
+                  referenceUuid: run.uuid,
+                },
+                {
+                  accountUuid: userAccounts.available.uuid,
+                  userUuid: position.userUuid,
+                  entryType: "market_settlement",
+                  amount: payoutAmount,
+                  direction: "credit",
+                  referenceType: "settlement_run",
+                  referenceUuid: run.uuid,
+                },
+              ],
+            },
+            {
+              dbClient: tx,
+              skipAuditLog: true,
+            },
+          );
+
+          totalPayout = totalPayout.plus(payoutAmount);
+        }
+
+        await tx.position.update({
+          where: {
+            uuid: position.uuid,
+          },
+          data: {
+            netQuantity: 0,
+            averageEntryPrice: new Prisma.Decimal(0),
+            realizedPnl: nextRealizedPnl,
+          },
+        });
+      }
+
+      return tx.settlementRun.update({
+        where: {
+          uuid: run.uuid,
+        },
+        data: {
+          status: "completed",
+          contractsProcessed: positions.reduce((total, position) => total + Math.abs(position.netQuantity), 0),
+          totalPayout,
+          metadata: {
+            ...(run.metadata && typeof run.metadata === "object" && !Array.isArray(run.metadata) ? run.metadata : {}),
+            executedByUserUuid: input.executedByUserUuid ?? null,
+            winningOutcome: run.marketResolution.winningOutcome,
+          },
+          finishedAt: new Date(),
+        },
+      });
+    });
+
+    await writeAuditLog({
+      action: "settlement.run.executed",
+      targetType: "settlement_run",
+      targetUuid: settledRun.uuid,
+      payload: {
+        marketUuid: settledRun.marketUuid,
+        contractsProcessed: settledRun.contractsProcessed,
+        totalPayout: settledRun.totalPayout.toFixed(4),
+      },
+    });
+
+    return mapSettlementRun(settledRun);
   }
 }

@@ -48,6 +48,7 @@ describe("settlement routes", () => {
     createSettlementRun: vi.fn(),
     updateSettlementRun: vi.fn(),
     listSettlementRuns: vi.fn(),
+    executeSettlementRun: vi.fn(),
   };
 
   beforeEach(() => {
@@ -255,6 +256,56 @@ describe("settlement routes", () => {
 
     expect(updateResponse.statusCode).toBe(200);
     expect(updateResponse.json()).toMatchObject({
+      settlementRun: {
+        uuid: "run-uuid",
+        status: "completed",
+      },
+    });
+
+    await server.close();
+  });
+
+  it("executes a settlement run", async () => {
+    vi.mocked(settlementService.executeSettlementRun).mockResolvedValue({
+      uuid: "run-uuid",
+      marketUuid: "market-uuid",
+      marketResolutionUuid: "resolution-uuid",
+      status: "completed",
+      contractsProcessed: 12,
+      totalPayout: "8.5000",
+      metadata: {
+        executedByUserUuid: "admin-user-uuid",
+      },
+      startedAt: new Date("2026-06-18T21:10:00.000Z"),
+      finishedAt: new Date("2026-06-18T21:15:00.000Z"),
+      createdAt: new Date("2026-06-18T21:10:00.000Z"),
+      updatedAt: new Date("2026-06-18T21:15:00.000Z"),
+    });
+
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      authService,
+      settlementService,
+    });
+    const token = signAccessToken({
+      sub: "admin-user-uuid",
+      email: "admin@example.com",
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/settlement-runs/33333333-3333-4333-8333-333333333333/execute",
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(settlementService.executeSettlementRun)).toHaveBeenCalledWith({
+      settlementRunUuid: "33333333-3333-4333-8333-333333333333",
+      executedByUserUuid: "admin-user-uuid",
+    });
+    expect(response.json()).toMatchObject({
       settlementRun: {
         uuid: "run-uuid",
         status: "completed",

@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
+import { writeAuditLog } from "../../lib/audit.js";
+import { LedgerService } from "../ledger/service.js";
 import { SettlementError, SettlementService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -20,12 +22,26 @@ vi.mock("../../lib/prisma.js", () => ({
       update: vi.fn(),
       findMany: vi.fn(),
     },
+    position: {
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
   },
 }));
 
+vi.mock("../../lib/audit.js", () => ({
+  writeAuditLog: vi.fn(),
+}));
+
 describe("SettlementService", () => {
-  const settlementService = new SettlementService();
+  const mockedLedgerService = {
+    ensurePlatformAccounts: vi.fn(),
+    ensureUserAccounts: vi.fn(),
+    postTransaction: vi.fn(),
+  } as unknown as LedgerService;
+  const settlementService = new SettlementService(mockedLedgerService);
   const mockedPrisma = vi.mocked(prisma, true);
+  const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -33,7 +49,25 @@ describe("SettlementService", () => {
       callback({
         market: mockedPrisma.market,
         marketResolution: mockedPrisma.marketResolution,
+        settlementRun: mockedPrisma.settlementRun,
+        position: mockedPrisma.position,
       } as never));
+    vi.mocked(mockedLedgerService.ensurePlatformAccounts).mockResolvedValue({
+      custody: {
+        uuid: "custody-uuid",
+      },
+    } as never);
+    vi.mocked(mockedLedgerService.ensureUserAccounts).mockResolvedValue({
+      available: {
+        uuid: "available-uuid",
+      },
+    } as never);
+    vi.mocked(mockedLedgerService.postTransaction).mockResolvedValue({
+      transaction: {
+        uuid: "ledger-transaction-uuid",
+      },
+      entries: [],
+    } as never);
   });
 
   it("creates and lists market resolutions", async () => {
@@ -217,5 +251,147 @@ describe("SettlementService", () => {
         status: "pending",
       }),
     ).rejects.toThrowError(new SettlementError("Mercado nao encontrado para resolucao.", 404));
+  });
+
+  it("settles winning and losing positions in the ledger and closes the positions", async () => {
+    mockedPrisma.settlementRun.findUnique.mockResolvedValue({
+      uuid: "run-uuid",
+      marketUuid: "market-uuid",
+      marketResolutionUuid: "resolution-uuid",
+      status: "pending",
+      contractsProcessed: 0,
+      totalPayout: new Prisma.Decimal("0"),
+      metadata: null,
+      startedAt: new Date("2026-06-18T21:10:00.000Z"),
+      finishedAt: null,
+      createdAt: new Date("2026-06-18T21:10:00.000Z"),
+      updatedAt: new Date("2026-06-18T21:10:00.000Z"),
+      market: {
+        uuid: "market-uuid",
+        contractValue: new Prisma.Decimal("1.00"),
+      },
+      marketResolution: {
+        uuid: "resolution-uuid",
+        status: "resolved",
+        winningOutcome: "YES",
+      },
+    } as never);
+    mockedPrisma.position.findMany.mockResolvedValue([
+      {
+        uuid: "winner-position-uuid",
+        userUuid: "winner-user-uuid",
+        marketUuid: "market-uuid",
+        outcome: "YES",
+        netQuantity: 3,
+        averageEntryPrice: new Prisma.Decimal("60.0000"),
+        realizedPnl: new Prisma.Decimal("0"),
+      },
+      {
+        uuid: "loser-position-uuid",
+        userUuid: "loser-user-uuid",
+        marketUuid: "market-uuid",
+        outcome: "YES",
+        netQuantity: -3,
+        averageEntryPrice: new Prisma.Decimal("60.0000"),
+        realizedPnl: new Prisma.Decimal("0"),
+      },
+    ] as never);
+    mockedPrisma.position.update
+      .mockResolvedValueOnce({ uuid: "winner-position-uuid" } as never)
+      .mockResolvedValueOnce({ uuid: "loser-position-uuid" } as never);
+    mockedPrisma.settlementRun.update.mockResolvedValue({
+      uuid: "run-uuid",
+      marketUuid: "market-uuid",
+      marketResolutionUuid: "resolution-uuid",
+      status: "completed",
+      contractsProcessed: 6,
+      totalPayout: new Prisma.Decimal("3.0000"),
+      metadata: {
+        executedByUserUuid: "admin-uuid",
+        winningOutcome: "YES",
+      },
+      startedAt: new Date("2026-06-18T21:10:00.000Z"),
+      finishedAt: new Date("2026-06-18T21:15:00.000Z"),
+      createdAt: new Date("2026-06-18T21:10:00.000Z"),
+      updatedAt: new Date("2026-06-18T21:15:00.000Z"),
+    } as never);
+    vi.mocked(mockedLedgerService.ensureUserAccounts).mockImplementation(async ({ userUuid }) => ({
+      available: {
+        uuid: `${userUuid}-available-uuid`,
+      },
+    }) as never);
+
+    await expect(
+      settlementService.executeSettlementRun({
+        settlementRunUuid: "run-uuid",
+        executedByUserUuid: "admin-uuid",
+      }),
+    ).resolves.toMatchObject({
+      uuid: "run-uuid",
+      status: "completed",
+      contractsProcessed: 6,
+      totalPayout: "3.0000",
+    });
+
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(mockedLedgerService.postTransaction)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionType: "market_settlement_payout",
+        referenceType: "settlement_run",
+        referenceUuid: "run-uuid",
+        entries: [
+          expect.objectContaining({
+            accountUuid: "custody-uuid",
+            direction: "debit",
+            amount: new Prisma.Decimal("3"),
+          }),
+          expect.objectContaining({
+            accountUuid: "winner-user-uuid-available-uuid",
+            userUuid: "winner-user-uuid",
+            direction: "credit",
+            amount: new Prisma.Decimal("3"),
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        skipAuditLog: true,
+      }),
+    );
+    expect(mockedPrisma.position.update).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          uuid: "winner-position-uuid",
+        },
+        data: {
+          netQuantity: 0,
+          averageEntryPrice: new Prisma.Decimal(0),
+          realizedPnl: new Prisma.Decimal("1.2000"),
+        },
+      }),
+    );
+    expect(mockedPrisma.position.update).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          uuid: "loser-position-uuid",
+        },
+        data: {
+          netQuantity: 0,
+          averageEntryPrice: new Prisma.Decimal(0),
+          realizedPnl: new Prisma.Decimal("-1.2000"),
+        },
+      }),
+    );
+    expect(mockedWriteAuditLog).toHaveBeenCalledWith({
+      action: "settlement.run.executed",
+      targetType: "settlement_run",
+      targetUuid: "run-uuid",
+      payload: {
+        marketUuid: "market-uuid",
+        contractsProcessed: 6,
+        totalPayout: "3.0000",
+      },
+    });
   });
 });

@@ -461,6 +461,17 @@ describe("admin sprint 3 e2e", () => {
           }),
           { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            settlementRun: {
+              uuid: "run-uuid",
+              status: "completed",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
       );
 
     globalThis.fetch = fetchMock;
@@ -554,6 +565,21 @@ describe("admin sprint 3 e2e", () => {
       },
     });
 
+    const executeRunResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/admin/settlement-runs/33333333-3333-4333-8333-333333333333/execute",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(executeRunResponse.status).toBe(200);
+    expect(executeRunResponse.json()).toMatchObject({
+      settlementRun: {
+        uuid: "run-uuid",
+        status: "completed",
+      },
+    });
+
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       new URL("/admin/markets/8fbc76f5-3958-4cb5-a7ef-c4bd67b29520/resolutions", "http://localhost:4000"),
@@ -590,6 +616,16 @@ describe("admin sprint 3 e2e", () => {
       new URL("/admin/settlement-runs/33333333-3333-4333-8333-333333333333", "http://localhost:4000"),
       expect.objectContaining({
         method: "PATCH",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      new URL("/admin/settlement-runs/33333333-3333-4333-8333-333333333333/execute", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
       }),
     );
   });

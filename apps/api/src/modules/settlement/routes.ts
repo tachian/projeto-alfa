@@ -158,6 +158,22 @@ export const buildSettlementRoutes = (
         return handleRouteError(error, reply);
       }
     });
+
+    fastify.post("/admin/settlement-runs/:settlementRunUuid/execute", async (request, reply) => {
+      try {
+        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const params = settlementRunUuidParamSchema.parse(request.params);
+
+        return {
+          settlementRun: await settlementService.executeSettlementRun({
+            settlementRunUuid: params.settlementRunUuid,
+            executedByUserUuid: adminUserUuid,
+          }),
+        };
+      } catch (error) {
+        return handleRouteError(error, reply);
+      }
+    });
   };
 };
 

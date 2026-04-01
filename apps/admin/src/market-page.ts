@@ -669,6 +669,7 @@ export const renderMarketPage = (input: {
                 <div class="admin-toolbar">
                   <button type="button" id="create-settlement-run">Criar settlement run</button>
                   <button type="button" id="update-latest-settlement-run" class="secondary">Atualizar ultimo run</button>
+                  <button type="button" id="execute-latest-settlement-run" class="warning">Executar ultimo run</button>
                 </div>
               </form>
             </div>
@@ -1063,6 +1064,25 @@ export const renderMarketPage = (input: {
         }
       };
 
+      const executeLatestSettlementRun = async () => {
+        if (!recentSettlementRuns[0]) {
+          setAdminStatus("Nao existe settlement run para executar.", "danger");
+          return;
+        }
+
+        setAdminStatus("Executando o ultimo settlement run...");
+
+        try {
+          await fetchJson("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid + "/execute", {
+            method: "POST",
+          });
+          await Promise.all([loadSettlementRuns(), loadMarket()]);
+          setAdminStatus("Settlement run executado com sucesso.", "success");
+        } catch (error) {
+          setAdminStatus(error.message, "danger");
+        }
+      };
+
       const connectRealtime = () => {
         if (liveSocket) {
           liveSocket.close();
@@ -1124,6 +1144,7 @@ export const renderMarketPage = (input: {
       });
       document.getElementById("create-settlement-run").addEventListener("click", createSettlementRun);
       document.getElementById("update-latest-settlement-run").addEventListener("click", updateLatestSettlementRun);
+      document.getElementById("execute-latest-settlement-run").addEventListener("click", executeLatestSettlementRun);
       document.getElementById("suspend-market").addEventListener("click", async () => {
         await submitUpdate({ status: "suspended" });
       });
