@@ -143,6 +143,7 @@ Painéis locais:
 - `RabbitMQ`: http://localhost:15672 (`admin` / `admin`)
 - `Prometheus`: http://localhost:9090
 - `Grafana`: http://localhost:3001 (`admin` / `admin`)
+- `API metrics`: http://localhost:4000/metrics
 
 Arquivos de ambiente de referencia:
 
@@ -190,11 +191,19 @@ Verificar o healthcheck:
 ```bash
 curl http://127.0.0.1:4000/
 curl http://127.0.0.1:4000/health/ready
+curl http://127.0.0.1:4000/metrics
 ```
 
 Canal realtime do `api`:
 
 - `ws://127.0.0.1:4000/realtime`
+
+Observabilidade e reconciliacao:
+
+- `GET /metrics`: metricas Prometheus da API
+- `GET /admin/reconciliation/report`: relatorio operacional de reconciliacao
+- Prometheus agora carrega regras em [alerts.yml](/home/tachian/work/projeto-alfa/infra/prometheus/alerts.yml)
+- O Prometheus local raspa a API em `host.docker.internal:4000`
 
 Depois de conectar, envie comandos JSON como:
 

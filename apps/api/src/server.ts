@@ -17,6 +17,8 @@ import { buildPaymentRoutes } from "./modules/payments/routes.js";
 import type { PaymentServiceContract } from "./modules/payments/service.js";
 import { buildPortfolioRoutes } from "./modules/portfolio/routes.js";
 import type { PortfolioServiceContract } from "./modules/portfolio/service.js";
+import { buildReconciliationRoutes } from "./modules/reconciliation/routes.js";
+import type { ReconciliationServiceContract } from "./modules/reconciliation/service.js";
 import { realtimeHub } from "./modules/realtime/hub.js";
 import { buildSettlementRoutes } from "./modules/settlement/routes.js";
 import type { SettlementServiceContract } from "./modules/settlement/service.js";
@@ -25,6 +27,7 @@ import type { WalletServiceContract } from "./modules/wallet/service.js";
 import { dependenciesPluginRegistered } from "./plugins/dependencies.js";
 import { observabilityPluginRegistered } from "./plugins/observability.js";
 import { healthRoutes } from "./routes/health.js";
+import { metricsRoutes } from "./routes/metrics.js";
 
 type BuildServerOptions = {
   dependenciesPlugin?: FastifyPluginAsync;
@@ -36,6 +39,7 @@ type BuildServerOptions = {
   orderService?: OrderServiceContract;
   paymentService?: PaymentServiceContract;
   portfolioService?: PortfolioServiceContract;
+  reconciliationService?: ReconciliationServiceContract;
   settlementService?: SettlementServiceContract;
   walletService?: WalletServiceContract;
 };
@@ -60,6 +64,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(observabilityPluginRegistered);
   await server.register(options.dependenciesPlugin ?? dependenciesPluginRegistered);
   await server.register(healthRoutes);
+  await server.register(metricsRoutes);
   await server.register(buildMarketCatalogRoutes(options.marketCatalogService));
   await server.register(buildAuthRoutes(options.authService));
   await server.register(buildAuditRoutes(options.auditService, options.authService));
@@ -68,6 +73,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(buildOrderRoutes(options.orderService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));
   await server.register(buildPortfolioRoutes(options.portfolioService, options.authService));
+  await server.register(buildReconciliationRoutes(options.reconciliationService, options.authService));
   await server.register(buildSettlementRoutes(options.settlementService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
   realtimeHub.attach(server.server);

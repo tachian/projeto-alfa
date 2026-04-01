@@ -65,7 +65,10 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       rabbitmq:
         condition: service_healthy

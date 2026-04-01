@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fp from "fastify-plugin";
 import type { FastifyPluginAsync } from "fastify";
+import { recordHttpResponseMetric } from "../lib/metrics.js";
 import { requestContext } from "../lib/request-context.js";
 import { verifyAccessToken } from "../modules/auth/tokens.js";
 
@@ -56,11 +57,19 @@ const observabilityPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.addHook("onResponse", async (request, reply) => {
+    const routePath = request.routeOptions.url ?? request.url;
+
+    recordHttpResponseMetric({
+      method: request.method,
+      path: routePath,
+      statusCode: reply.statusCode,
+    });
+
     request.log.info(
       {
         event: "http_response",
         method: request.method,
-        path: request.routeOptions.url,
+        path: routePath,
         status_code: reply.statusCode,
       },
       "request completed",
@@ -68,11 +77,13 @@ const observabilityPlugin: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.addHook("onError", async (request, reply, error) => {
+    const routePath = request.routeOptions.url ?? request.url;
+
     request.log.error(
       {
         event: "http_error",
         method: request.method,
-        path: request.routeOptions.url,
+        path: routePath,
         status_code: reply.statusCode,
         error_name: error.name,
       },

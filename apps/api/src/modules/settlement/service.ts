@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
+import { recordBusinessOperationMetric } from "../../lib/metrics.js";
 import { LedgerService } from "../ledger/service.js";
 import { writeAuditLog } from "../../lib/audit.js";
 
@@ -503,6 +504,11 @@ export class SettlementService implements SettlementServiceContract {
         contractsProcessed: settledRun.contractsProcessed,
         totalPayout: settledRun.totalPayout.toFixed(4),
       },
+    });
+
+    recordBusinessOperationMetric({
+      operation: "settlement_execute",
+      status: "success",
     });
 
     return mapSettlementRun(settledRun);

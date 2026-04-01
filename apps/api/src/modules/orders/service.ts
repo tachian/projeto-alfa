@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { recordBusinessOperationMetric } from "../../lib/metrics.js";
 import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import type { LedgerEntryDraft } from "../ledger/types.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
@@ -595,9 +596,18 @@ export class OrderService implements OrderServiceContract {
         ...matchedTrades.map((trade) => this.realtimePublisher.publishTrade(trade)),
       ]);
 
+      recordBusinessOperationMetric({
+        operation: "order_create",
+        status: "success",
+      });
+
       return mapOrder(order);
     } catch (error) {
       if (error instanceof LedgerError || error instanceof OrderError || error instanceof AccountStateError || error instanceof RiskError) {
+        recordBusinessOperationMetric({
+          operation: "order_create",
+          status: "failure",
+        });
         throw error;
       }
 
@@ -760,6 +770,11 @@ export class OrderService implements OrderServiceContract {
     });
 
     await this.realtimePublisher.publishMarketBook(canceledOrder.marketUuid);
+
+    recordBusinessOperationMetric({
+      operation: "order_cancel",
+      status: "success",
+    });
 
     return mapOrder(canceledOrder);
   }

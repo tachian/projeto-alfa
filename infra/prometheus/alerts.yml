@@ -1,0 +1,29 @@
+groups:
+  - name: projeto-alfa-api
+    rules:
+      - alert: ProjetoAlfaApiHigh5xxRate
+        expr: sum by (path) (increase(projeto_alfa_http_requests_total{status_code=~"5.."}[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API com taxa elevada de respostas 5xx"
+          description: "A API retornou mais de 5 respostas 5xx nos ultimos 5 minutos para a rota {{ $labels.path }}."
+
+      - alert: ProjetoAlfaReconciliationCritical
+        expr: max(projeto_alfa_reconciliation_check_status) >= 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Reconciliacao critica detectada"
+          description: "Ao menos uma checagem de reconciliacao entrou em estado critico."
+
+      - alert: ProjetoAlfaReconciliationWarning
+        expr: max(projeto_alfa_reconciliation_check_status) == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Reconciliacao com aviso operacional"
+          description: "Ao menos uma checagem de reconciliacao entrou em estado de aviso."

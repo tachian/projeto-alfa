@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { recordBusinessOperationMetric } from "../../lib/metrics.js";
 import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 import { RiskError, RiskService, type RiskServiceContract } from "../risk/service.js";
@@ -319,9 +320,18 @@ export class PaymentService implements PaymentServiceContract {
         },
       });
 
+      recordBusinessOperationMetric({
+        operation: `payment_${input.type}`,
+        status: "success",
+      });
+
       return mapPayment(completedPayment);
     } catch (error) {
       if (error instanceof PaymentError || error instanceof LedgerError || error instanceof AccountStateError || error instanceof RiskError) {
+        recordBusinessOperationMetric({
+          operation: `payment_${input.type}`,
+          status: "failure",
+        });
         throw error;
       }
 
