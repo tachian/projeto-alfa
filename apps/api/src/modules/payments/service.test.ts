@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeAuditLog } from "../../lib/audit.js";
 import { prisma } from "../../lib/prisma.js";
+import type { AccountStateServiceContract } from "../account-state/service.js";
+import { AccountStateError } from "../account-state/service.js";
 import { LedgerService } from "../ledger/service.js";
 import { PaymentError, PaymentService } from "./service.js";
 
@@ -27,13 +29,21 @@ describe("PaymentService", () => {
     getAccountBalance: vi.fn(),
     postTransaction: vi.fn(),
   } as unknown as LedgerService;
+  const mockedAccountStateService: AccountStateServiceContract = {
+    getUserStatus: vi.fn(),
+    assertCanCreateOrder: vi.fn(),
+    assertCanCreateDeposit: vi.fn(),
+    assertCanCreateWithdrawal: vi.fn(),
+  };
 
-  const paymentService = new PaymentService(mockedLedgerService);
+  const paymentService = new PaymentService(mockedLedgerService, mockedAccountStateService);
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(mockedAccountStateService.assertCanCreateDeposit).mockResolvedValue();
+    vi.mocked(mockedAccountStateService.assertCanCreateWithdrawal).mockResolvedValue();
   });
 
   it("creates a completed mock deposit and posts it inside a transaction", async () => {
@@ -210,6 +220,29 @@ describe("PaymentService", () => {
       idempotencyKey: "dep-001",
       status: "completed",
     });
+
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("blocks withdrawals when the account is not operationally active", async () => {
+    vi.mocked(mockedAccountStateService.assertCanCreateWithdrawal).mockRejectedValue(
+      new AccountStateError(
+        "A conta precisa estar ativa para saques. Conclua a verificacao ou contate o suporte.",
+        403,
+      ),
+    );
+
+    await expect(
+      paymentService.createWithdrawal({
+        userUuid: "user-uuid",
+        amount: 10,
+      }),
+    ).rejects.toThrowError(
+      new AccountStateError(
+        "A conta precisa estar ativa para saques. Conclua a verificacao ou contate o suporte.",
+        403,
+      ),
+    );
 
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });

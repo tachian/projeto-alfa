@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 
 const DEFAULT_CURRENCY = "USD";
@@ -113,7 +114,10 @@ const mapPayment = (payment: {
 });
 
 export class PaymentService implements PaymentServiceContract {
-  constructor(private readonly ledgerService = new LedgerService()) {}
+  constructor(
+    private readonly ledgerService = new LedgerService(),
+    private readonly accountStateService: AccountStateServiceContract = new AccountStateService(),
+  ) {}
 
   async createDeposit(input: CreatePaymentInput): Promise<PaymentRecord> {
     return this.createPayment({
@@ -160,6 +164,12 @@ export class PaymentService implements PaymentServiceContract {
     const amount = normalizePositiveAmount(input.amount);
     const currency = (input.currency ?? DEFAULT_CURRENCY).toUpperCase();
     const idempotencyKey = input.idempotencyKey?.trim() || undefined;
+
+    if (input.type === "deposit") {
+      await this.accountStateService.assertCanCreateDeposit(input.userUuid);
+    } else {
+      await this.accountStateService.assertCanCreateWithdrawal(input.userUuid);
+    }
 
     if (idempotencyKey) {
       const existingPayment = await prisma.payment.findFirst({
@@ -302,7 +312,7 @@ export class PaymentService implements PaymentServiceContract {
 
       return mapPayment(completedPayment);
     } catch (error) {
-      if (error instanceof PaymentError || error instanceof LedgerError) {
+      if (error instanceof PaymentError || error instanceof LedgerError || error instanceof AccountStateError) {
         throw error;
       }
 

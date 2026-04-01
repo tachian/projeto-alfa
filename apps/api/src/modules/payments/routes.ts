@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { AccountStateError } from "../account-state/service.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
@@ -50,7 +51,7 @@ export const buildPaymentRoutes = (
           payment,
         };
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
           reply.code(error.statusCode);
 
           return {
@@ -74,7 +75,7 @@ export const buildPaymentRoutes = (
           limit: query.limit,
         });
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
           reply.code(error.statusCode);
 
           return {
@@ -104,7 +105,7 @@ export const buildPaymentRoutes = (
           payment,
         };
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
           reply.code(error.statusCode);
 
           return {
@@ -128,7 +129,7 @@ export const buildPaymentRoutes = (
           limit: query.limit,
         });
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
           reply.code(error.statusCode);
 
           return {

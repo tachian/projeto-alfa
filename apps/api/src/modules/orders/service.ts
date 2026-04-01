@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import type { LedgerEntryDraft } from "../ledger/types.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 import { RealtimePublisher, type RealtimePublisherContract } from "../realtime/publisher.js";
@@ -174,6 +175,7 @@ const CENTS_IN_DOLLAR = new Prisma.Decimal(100);
 export class OrderService implements OrderServiceContract {
   constructor(
     private readonly ledgerService = new LedgerService(),
+    private readonly accountStateService: AccountStateServiceContract = new AccountStateService(),
     private readonly realtimePublisher: RealtimePublisherContract = new RealtimePublisher(),
   ) {}
 
@@ -185,6 +187,7 @@ export class OrderService implements OrderServiceContract {
     assertOrderType(normalizedOrderType);
     assertPrice(input.price);
     assertQuantity(input.quantity);
+    await this.accountStateService.assertCanCreateOrder(input.userUuid);
 
     const market = await prisma.market.findUnique({
       where: {
@@ -584,7 +587,7 @@ export class OrderService implements OrderServiceContract {
 
       return mapOrder(order);
     } catch (error) {
-      if (error instanceof LedgerError || error instanceof OrderError) {
+      if (error instanceof LedgerError || error instanceof OrderError || error instanceof AccountStateError) {
         throw error;
       }
 

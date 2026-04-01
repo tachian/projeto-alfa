@@ -80,6 +80,7 @@ export class AuthService implements AuthServiceContract {
       data: {
         email: input.email,
         passwordHash,
+        status: "pending_verification",
       },
     });
 

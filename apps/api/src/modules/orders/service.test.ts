@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
+import type { AccountStateServiceContract } from "../account-state/service.js";
+import { AccountStateError } from "../account-state/service.js";
 import { LedgerService } from "../ledger/service.js";
 import type { RealtimePublisherContract } from "../realtime/publisher.js";
 import { OrderError, OrderService } from "./service.js";
@@ -67,13 +69,19 @@ describe("OrderService", () => {
     getAccountBalance: vi.fn(),
     postTransaction: vi.fn(),
   } as unknown as LedgerService;
+  const mockedAccountStateService: AccountStateServiceContract = {
+    getUserStatus: vi.fn(),
+    assertCanCreateOrder: vi.fn(),
+    assertCanCreateDeposit: vi.fn(),
+    assertCanCreateWithdrawal: vi.fn(),
+  };
 
   const mockedRealtimePublisher: RealtimePublisherContract = {
     publishMarketBook: vi.fn(),
     publishTrade: vi.fn(),
   };
 
-  const orderService = new OrderService(mockedLedgerService, mockedRealtimePublisher);
+  const orderService = new OrderService(mockedLedgerService, mockedAccountStateService, mockedRealtimePublisher);
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
@@ -121,6 +129,7 @@ describe("OrderService", () => {
       currency: "USD",
       available: "100.0000",
     });
+    vi.mocked(mockedAccountStateService.assertCanCreateOrder).mockResolvedValue();
     vi.mocked(mockedLedgerService.postTransaction).mockResolvedValue({
       transaction: { uuid: "ledger-tx-uuid" },
       entries: [],
@@ -195,6 +204,33 @@ describe("OrderService", () => {
       },
     });
     expect(vi.mocked(mockedRealtimePublisher.publishMarketBook)).toHaveBeenCalledWith(marketFixture.uuid);
+  });
+
+  it("blocks order creation when the account is not operationally active", async () => {
+    vi.mocked(mockedAccountStateService.assertCanCreateOrder).mockRejectedValue(
+      new AccountStateError(
+        "A conta precisa estar ativa para negociar. Conclua a verificacao ou contate o suporte.",
+        403,
+      ),
+    );
+
+    await expect(
+      orderService.createOrder({
+        userUuid: "user-uuid",
+        marketUuid: marketFixture.uuid,
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      }),
+    ).rejects.toThrowError(
+      new AccountStateError(
+        "A conta precisa estar ativa para negociar. Conclua a verificacao ou contate o suporte.",
+        403,
+      ),
+    );
+
+    expect(mockedPrisma.market.findUnique).not.toHaveBeenCalled();
   });
 
   it("matches a new buy order against a resting sell order", async () => {

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { AccountStateError } from "../account-state/service.js";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
@@ -26,7 +27,7 @@ const cancelOrderParamsSchema = z.object({
 });
 
 const handleRouteError = (error: unknown, reply: { code: (statusCode: number) => void }) => {
-  if (error instanceof AuthError || error instanceof OrderError) {
+  if (error instanceof AuthError || error instanceof OrderError || error instanceof AccountStateError) {
     reply.code(error.statusCode);
 
     return {

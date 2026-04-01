@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
+import type { AccountStateServiceContract } from "../account-state/service.js";
 import { LedgerService } from "../ledger/service.js";
 import { PaymentService } from "./service.js";
 
@@ -27,8 +28,14 @@ describe("PaymentService financial consistency", () => {
     getAccountBalance: vi.fn(),
     postTransaction: vi.fn(),
   } as unknown as LedgerService;
+  const mockedAccountStateService: AccountStateServiceContract = {
+    getUserStatus: vi.fn(),
+    assertCanCreateOrder: vi.fn(),
+    assertCanCreateDeposit: vi.fn(),
+    assertCanCreateWithdrawal: vi.fn(),
+  };
 
-  const paymentService = new PaymentService(mockedLedgerService);
+  const paymentService = new PaymentService(mockedLedgerService, mockedAccountStateService);
   const mockedPrisma = vi.mocked(prisma, true);
 
   const transactionClient: {
@@ -69,6 +76,8 @@ describe("PaymentService financial consistency", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(mockedAccountStateService.assertCanCreateDeposit).mockResolvedValue();
+    vi.mocked(mockedAccountStateService.assertCanCreateWithdrawal).mockResolvedValue();
 
     vi.mocked(mockedLedgerService.ensureInternalAccounts).mockResolvedValue({
       available: { uuid: "available-uuid" },
