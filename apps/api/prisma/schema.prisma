@@ -15,6 +15,7 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
   refreshTokens RefreshToken[]
+  identityVerifications IdentityVerification[]
   orders        Order[]
   positions     Position[]
   positionSettlements PositionSettlement[]
@@ -280,6 +281,33 @@ model RefreshToken {
 
   @@index([userUuid])
   @@map("refresh_tokens")
+}
+
+model IdentityVerification {
+  uuid              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userUuid          String   @db.Uuid @map("user_uuid")
+  provider          String
+  providerReference String?  @map("provider_reference")
+  verificationType  String   @default("individual") @map("verification_type")
+  status            String
+  amlStatus         String   @default("pending") @map("aml_status")
+  riskLevel         String   @default("unknown") @map("risk_level")
+  fullName          String   @map("full_name")
+  documentType      String   @map("document_type")
+  documentNumber    String   @map("document_number")
+  countryCode       String   @map("country_code")
+  birthDate         DateTime? @map("birth_date")
+  reviewedAt        DateTime? @map("reviewed_at")
+  requirements      Json?
+  providerPayload   Json?    @map("provider_payload")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+
+  @@index([userUuid, createdAt])
+  @@index([status, createdAt])
+  @@index([provider, providerReference])
+  @@map("identity_verifications")
 }
 
 model AuditLog {

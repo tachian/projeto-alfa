@@ -254,6 +254,92 @@
       ]
     },
     {
+      "name": "KYC",
+      "item": [
+        {
+          "name": "Create Submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ada Lovelace\",\n  \"documentType\": \"passport\",\n  \"documentNumber\": \"ABC12345\",\n  \"countryCode\": \"BR\",\n  \"birthDate\": \"1990-01-01T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/kyc/submissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kyc",
+                "submissions"
+              ]
+            },
+            "description": "Cria uma submissao KYC/AML usando o provedor configurado no API."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Submission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kyc/submissions/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kyc",
+                "submissions",
+                "latest"
+              ]
+            },
+            "description": "Retorna a ultima verificacao KYC/AML do usuario autenticado."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Requirements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/kyc/requirements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "kyc",
+                "requirements"
+              ]
+            },
+            "description": "Lista os requisitos pendentes para aprovacao KYC/AML."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Wallet",
       "item": [
         {

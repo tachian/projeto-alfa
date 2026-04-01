@@ -7,6 +7,8 @@ import { buildMarketCatalogRoutes } from "./modules/markets/public-routes.js";
 import type { MarketCatalogServiceContract } from "./modules/markets/public-service.js";
 import { buildMarketAdminRoutes } from "./modules/markets/routes.js";
 import type { MarketAdminServiceContract } from "./modules/markets/service.js";
+import { buildKycRoutes } from "./modules/kyc/routes.js";
+import type { KycServiceContract } from "./modules/kyc/service.js";
 import { buildOrderRoutes } from "./modules/orders/routes.js";
 import type { OrderServiceContract } from "./modules/orders/service.js";
 import { buildPaymentRoutes } from "./modules/payments/routes.js";
@@ -27,6 +29,7 @@ type BuildServerOptions = {
   authService?: AuthServiceContract;
   marketCatalogService?: MarketCatalogServiceContract;
   marketAdminService?: MarketAdminServiceContract;
+  kycService?: KycServiceContract;
   orderService?: OrderServiceContract;
   paymentService?: PaymentServiceContract;
   portfolioService?: PortfolioServiceContract;
@@ -56,6 +59,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(healthRoutes);
   await server.register(buildMarketCatalogRoutes(options.marketCatalogService));
   await server.register(buildAuthRoutes(options.authService));
+  await server.register(buildKycRoutes(options.kycService, options.authService));
   await server.register(buildMarketAdminRoutes(options.marketAdminService, options.authService));
   await server.register(buildOrderRoutes(options.orderService, options.authService));
   await server.register(buildPaymentRoutes(options.paymentService, options.authService));

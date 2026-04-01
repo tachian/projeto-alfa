@@ -22,6 +22,8 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(8),
   JWT_EXPIRES_IN: z.string().min(1),
   JWT_REFRESH_EXPIRES_IN: z.string().min(1),
+  KYC_PROVIDER: z.enum(["mock"]).default("mock"),
+  KYC_MOCK_DEFAULT_STATUS: z.enum(["approved", "manual_review", "rejected"]).default("approved"),
   PROMETHEUS_PORT: z.coerce.number().int().positive().default(9464),
 });
 

@@ -158,6 +158,11 @@ Arquivos `.env` locais criados:
 - `admin`: [apps/admin/.env](/home/tachian/work/projeto-alfa/apps/admin/.env)
 - `worker`: [apps/worker/.env](/home/tachian/work/projeto-alfa/apps/worker/.env)
 
+Configuracoes relevantes do `api` para KYC/AML:
+
+- `KYC_PROVIDER=mock`
+- `KYC_MOCK_DEFAULT_STATUS=approved`
+
 Endpoints para apps locais:
 
 - `Postgres`: `postgres://postgres:teste123@127.0.0.1:5432/projeto_alfa`
@@ -218,6 +223,9 @@ Chamadas disponiveis na collection:
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `GET /auth/me`
+- `POST /kyc/submissions`
+- `GET /kyc/submissions/latest`
+- `GET /kyc/requirements`
 - `GET /markets`
 - `GET /markets/:marketUuid`
 - `GET /markets/:marketUuid/book`
@@ -237,6 +245,12 @@ Chamadas disponiveis na collection:
 - `DELETE /admin/markets/:marketUuid`
 
 Para `POST /payments/deposits` e `POST /payments/withdrawals`, envie o header `Idempotency-Key` quando quiser garantir que retries nao criem pagamentos duplicados.
+
+Para simular respostas do provedor KYC mock:
+
+- documento terminando em `999`: `rejected` com AML `flagged`
+- documento terminando em `111`: `manual_review`
+- qualquer outro final: usa `KYC_MOCK_DEFAULT_STATUS`
 
 O endpoint `GET /markets` aceita filtros opcionais por:
 
