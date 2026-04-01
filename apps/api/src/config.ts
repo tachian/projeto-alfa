@@ -25,6 +25,12 @@ const envSchema = z.object({
   KYC_PROVIDER: z.enum(["mock"]).default("mock"),
   KYC_MOCK_DEFAULT_STATUS: z.enum(["approved", "manual_review", "rejected"]).default("approved"),
   PROMETHEUS_PORT: z.coerce.number().int().positive().default(9464),
+  RISK_MAX_ORDER_QUANTITY: z.coerce.number().int().positive().default(1000),
+  RISK_MAX_ORDER_RESERVE_AMOUNT: z.coerce.number().positive().default(25000),
+  RISK_MAX_OPEN_ORDERS_PER_MARKET: z.coerce.number().int().positive().default(25),
+  RISK_MAX_GROSS_EXPOSURE_PER_MARKET: z.coerce.number().int().positive().default(5000),
+  RISK_MAX_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(10000),
+  RISK_MAX_DAILY_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(25000),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

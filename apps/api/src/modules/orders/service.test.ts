@@ -6,6 +6,8 @@ import type { AccountStateServiceContract } from "../account-state/service.js";
 import { AccountStateError } from "../account-state/service.js";
 import { LedgerService } from "../ledger/service.js";
 import type { RealtimePublisherContract } from "../realtime/publisher.js";
+import type { RiskServiceContract } from "../risk/service.js";
+import { RiskError } from "../risk/service.js";
 import { OrderError, OrderService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -80,8 +82,17 @@ describe("OrderService", () => {
     publishMarketBook: vi.fn(),
     publishTrade: vi.fn(),
   };
+  const mockedRiskService: RiskServiceContract = {
+    assertOrderWithinLimits: vi.fn(),
+    assertWithdrawalWithinLimits: vi.fn(),
+  };
 
-  const orderService = new OrderService(mockedLedgerService, mockedAccountStateService, mockedRealtimePublisher);
+  const orderService = new OrderService(
+    mockedLedgerService,
+    mockedAccountStateService,
+    mockedRealtimePublisher,
+    mockedRiskService,
+  );
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
@@ -108,6 +119,7 @@ describe("OrderService", () => {
     },
     position: {
       findUnique: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -130,6 +142,7 @@ describe("OrderService", () => {
       available: "100.0000",
     });
     vi.mocked(mockedAccountStateService.assertCanCreateOrder).mockResolvedValue();
+    vi.mocked(mockedRiskService.assertOrderWithinLimits).mockResolvedValue();
     vi.mocked(mockedLedgerService.postTransaction).mockResolvedValue({
       transaction: { uuid: "ledger-tx-uuid" },
       entries: [],
@@ -137,6 +150,7 @@ describe("OrderService", () => {
     vi.mocked(mockedRealtimePublisher.publishMarketBook).mockResolvedValue();
     vi.mocked(mockedRealtimePublisher.publishTrade).mockResolvedValue();
     transactionClient.position.findUnique.mockResolvedValue(null as never);
+    transactionClient.position.findMany.mockResolvedValue([] as never);
     transactionClient.position.create.mockResolvedValue({
       uuid: "position-uuid",
       realizedPnl: new Prisma.Decimal(0),
@@ -231,6 +245,28 @@ describe("OrderService", () => {
     );
 
     expect(mockedPrisma.market.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("blocks order creation when the user exceeds the configured risk limits", async () => {
+    mockedPrisma.market.findUnique.mockResolvedValue(marketFixture as never);
+    vi.mocked(mockedRiskService.assertOrderWithinLimits).mockRejectedValue(
+      new RiskError("A ordem ultrapassa o limite de exposicao bruta neste mercado.", 403),
+    );
+
+    await expect(
+      orderService.createOrder({
+        userUuid: "user-uuid",
+        marketUuid: marketFixture.uuid,
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      }),
+    ).rejects.toThrowError(
+      new RiskError("A ordem ultrapassa o limite de exposicao bruta neste mercado.", 403),
+    );
+
+    expect(transactionClient.order.create).not.toHaveBeenCalled();
   });
 
   it("matches a new buy order against a resting sell order", async () => {

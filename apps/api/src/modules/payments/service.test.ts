@@ -5,6 +5,8 @@ import { prisma } from "../../lib/prisma.js";
 import type { AccountStateServiceContract } from "../account-state/service.js";
 import { AccountStateError } from "../account-state/service.js";
 import { LedgerService } from "../ledger/service.js";
+import type { RiskServiceContract } from "../risk/service.js";
+import { RiskError } from "../risk/service.js";
 import { PaymentError, PaymentService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -35,8 +37,12 @@ describe("PaymentService", () => {
     assertCanCreateDeposit: vi.fn(),
     assertCanCreateWithdrawal: vi.fn(),
   };
+  const mockedRiskService: RiskServiceContract = {
+    assertOrderWithinLimits: vi.fn(),
+    assertWithdrawalWithinLimits: vi.fn(),
+  };
 
-  const paymentService = new PaymentService(mockedLedgerService, mockedAccountStateService);
+  const paymentService = new PaymentService(mockedLedgerService, mockedAccountStateService, mockedRiskService);
   const mockedPrisma = vi.mocked(prisma, true);
   const mockedWriteAuditLog = vi.mocked(writeAuditLog);
 
@@ -44,6 +50,7 @@ describe("PaymentService", () => {
     vi.clearAllMocks();
     vi.mocked(mockedAccountStateService.assertCanCreateDeposit).mockResolvedValue();
     vi.mocked(mockedAccountStateService.assertCanCreateWithdrawal).mockResolvedValue();
+    vi.mocked(mockedRiskService.assertWithdrawalWithinLimits).mockResolvedValue();
   });
 
   it("creates a completed mock deposit and posts it inside a transaction", async () => {
@@ -163,6 +170,7 @@ describe("PaymentService", () => {
     mockedPrisma.$transaction.mockImplementation(async (callback) =>
       callback({
         payment: {
+          aggregate: vi.fn(),
           create: vi.fn(),
           update: vi.fn(),
         },
@@ -187,6 +195,50 @@ describe("PaymentService", () => {
         amount: 40,
       }),
     ).rejects.toThrowError(new PaymentError("Saldo insuficiente para saque.", 400));
+  });
+
+  it("blocks withdrawals that exceed the configured risk limits", async () => {
+    vi.mocked(mockedLedgerService.ensureInternalAccounts).mockResolvedValue({
+      available: { uuid: "available-uuid" },
+      reserved: { uuid: "reserved-uuid" },
+      fee: { uuid: "fee-uuid" },
+      custody: { uuid: "custody-uuid" },
+    } as never);
+    vi.mocked(mockedRiskService.assertWithdrawalWithinLimits).mockRejectedValue(
+      new RiskError("O valor do saque excede o limite por operacao.", 403),
+    );
+    mockedPrisma.$transaction.mockImplementation(async (callback) =>
+      callback({
+        payment: {
+          aggregate: vi.fn().mockResolvedValue({
+            _sum: {
+              amount: new Prisma.Decimal(0),
+            },
+          }),
+          create: vi.fn(),
+          update: vi.fn(),
+        },
+        account: {
+          findUnique: vi.fn(),
+          findFirst: vi.fn(),
+          create: vi.fn(),
+        },
+        ledgerTransaction: {
+          create: vi.fn(),
+        },
+        ledgerEntry: {
+          create: vi.fn(),
+          groupBy: vi.fn(),
+        },
+      } as never),
+    );
+
+    await expect(
+      paymentService.createWithdrawal({
+        userUuid: "user-uuid",
+        amount: 100,
+      }),
+    ).rejects.toThrowError(new RiskError("O valor do saque excede o limite por operacao.", 403));
   });
 
   it("returns the existing payment when the idempotency key is reused with the same payload", async () => {

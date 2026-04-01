@@ -5,6 +5,7 @@ import { AccountStateError, AccountStateService, type AccountStateServiceContrac
 import type { LedgerEntryDraft } from "../ledger/types.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 import { RealtimePublisher, type RealtimePublisherContract } from "../realtime/publisher.js";
+import { RiskError, RiskService, type RiskServiceContract } from "../risk/service.js";
 
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
@@ -177,6 +178,7 @@ export class OrderService implements OrderServiceContract {
     private readonly ledgerService = new LedgerService(),
     private readonly accountStateService: AccountStateServiceContract = new AccountStateService(),
     private readonly realtimePublisher: RealtimePublisherContract = new RealtimePublisher(),
+    private readonly riskService: RiskServiceContract = new RiskService(),
   ) {}
 
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
@@ -230,6 +232,14 @@ export class OrderService implements OrderServiceContract {
         if (availableAmount.lt(reserveAmount)) {
           throw new OrderError("Saldo insuficiente para reservar a ordem.", 400);
         }
+
+        await this.riskService.assertOrderWithinLimits({
+          dbClient: tx,
+          userUuid: input.userUuid,
+          marketUuid: input.marketUuid,
+          reserveAmount,
+          quantity: input.quantity,
+        });
 
         const createdOrder = await tx.order.create({
           data: {
@@ -587,7 +597,7 @@ export class OrderService implements OrderServiceContract {
 
       return mapOrder(order);
     } catch (error) {
-      if (error instanceof LedgerError || error instanceof OrderError || error instanceof AccountStateError) {
+      if (error instanceof LedgerError || error instanceof OrderError || error instanceof AccountStateError || error instanceof RiskError) {
         throw error;
       }
 

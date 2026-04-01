@@ -4,6 +4,7 @@ import { AccountStateError } from "../account-state/service.js";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
+import { RiskError } from "../risk/service.js";
 import type { OrderServiceContract } from "./service.js";
 import { OrderError, OrderService } from "./service.js";
 
@@ -27,7 +28,7 @@ const cancelOrderParamsSchema = z.object({
 });
 
 const handleRouteError = (error: unknown, reply: { code: (statusCode: number) => void }) => {
-  if (error instanceof AuthError || error instanceof OrderError || error instanceof AccountStateError) {
+  if (error instanceof AuthError || error instanceof OrderError || error instanceof AccountStateError || error instanceof RiskError) {
     reply.code(error.statusCode);
 
     return {

@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
 import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
+import { RiskError, RiskService, type RiskServiceContract } from "../risk/service.js";
 
 const DEFAULT_CURRENCY = "USD";
 const DEFAULT_LIST_LIMIT = 50;
@@ -117,6 +118,7 @@ export class PaymentService implements PaymentServiceContract {
   constructor(
     private readonly ledgerService = new LedgerService(),
     private readonly accountStateService: AccountStateServiceContract = new AccountStateService(),
+    private readonly riskService: RiskServiceContract = new RiskService(),
   ) {}
 
   async createDeposit(input: CreatePaymentInput): Promise<PaymentRecord> {
@@ -204,6 +206,13 @@ export class PaymentService implements PaymentServiceContract {
         );
 
         if (input.type === "withdrawal") {
+          await this.riskService.assertWithdrawalWithinLimits({
+            dbClient: tx,
+            userUuid: input.userUuid,
+            amount,
+            currency,
+          });
+
           const availableBalance = await this.ledgerService.getAccountBalance(accounts.available.uuid, tx);
           const availableAmount = new Prisma.Decimal(availableBalance.available);
 
@@ -312,7 +321,7 @@ export class PaymentService implements PaymentServiceContract {
 
       return mapPayment(completedPayment);
     } catch (error) {
-      if (error instanceof PaymentError || error instanceof LedgerError || error instanceof AccountStateError) {
+      if (error instanceof PaymentError || error instanceof LedgerError || error instanceof AccountStateError || error instanceof RiskError) {
         throw error;
       }
 

@@ -11,6 +11,7 @@ const decimalToFixed = (value: Prisma.Decimal | number | string) =>
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     payment: {
+      aggregate: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
@@ -40,6 +41,7 @@ describe("PaymentService financial consistency", () => {
 
   const transactionClient: {
     payment: {
+      aggregate: ReturnType<typeof vi.fn>;
       create: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
     };
@@ -57,6 +59,7 @@ describe("PaymentService financial consistency", () => {
     };
   } = {
     payment: {
+      aggregate: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -87,6 +90,11 @@ describe("PaymentService financial consistency", () => {
     } as never);
 
     mockedPrisma.$transaction.mockImplementation(async (callback) => callback(transactionClient as never));
+    transactionClient.payment.aggregate.mockResolvedValue({
+      _sum: {
+        amount: new Prisma.Decimal(0),
+      },
+    });
   });
 
   it("keeps deposit ledger entries mirrored and balanced", async () => {

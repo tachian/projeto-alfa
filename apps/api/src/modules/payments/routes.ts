@@ -4,6 +4,7 @@ import { AccountStateError } from "../account-state/service.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
+import { RiskError } from "../risk/service.js";
 import type { PaymentServiceContract } from "./service.js";
 import { PaymentError, PaymentService } from "./service.js";
 
@@ -51,7 +52,7 @@ export const buildPaymentRoutes = (
           payment,
         };
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError || error instanceof RiskError) {
           reply.code(error.statusCode);
 
           return {
@@ -75,7 +76,7 @@ export const buildPaymentRoutes = (
           limit: query.limit,
         });
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError || error instanceof RiskError) {
           reply.code(error.statusCode);
 
           return {
@@ -105,7 +106,7 @@ export const buildPaymentRoutes = (
           payment,
         };
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError || error instanceof RiskError) {
           reply.code(error.statusCode);
 
           return {
@@ -129,7 +130,7 @@ export const buildPaymentRoutes = (
           limit: query.limit,
         });
       } catch (error) {
-        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError) {
+        if (error instanceof AuthError || error instanceof PaymentError || error instanceof AccountStateError || error instanceof RiskError) {
           reply.code(error.statusCode);
 
           return {
