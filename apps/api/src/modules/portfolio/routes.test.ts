@@ -45,6 +45,7 @@ describe("portfolio routes", () => {
   const portfolioService: PortfolioServiceContract = {
     listPositions: vi.fn(),
     getPnlSummary: vi.fn(),
+    listSettlements: vi.fn(),
   };
 
   beforeEach(() => {
@@ -149,6 +150,65 @@ describe("portfolio routes", () => {
         totalPnl: "1.2500",
         openPositions: 2,
       },
+    });
+
+    await server.close();
+  });
+
+  it("lists settlement history for the authenticated portfolio", async () => {
+    vi.mocked(portfolioService.listSettlements).mockResolvedValue([
+      {
+        uuid: "position-settlement-uuid",
+        settlementRunUuid: "run-uuid",
+        marketUuid: "market-uuid",
+        outcome: "YES",
+        winningOutcome: "YES",
+        positionDirection: "long",
+        contractsSettled: 3,
+        payoutAmount: "3.0000",
+        realizedPnlDelta: "1.2000",
+        status: "won",
+        createdAt: new Date("2026-06-18T21:15:00.000Z"),
+        market: {
+          uuid: "market-uuid",
+          slug: "market-slug",
+          title: "Market title",
+          status: "resolved",
+          closeAt: new Date("2026-06-18T21:00:00.000Z"),
+        },
+      },
+    ]);
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      authService,
+      portfolioService,
+    });
+    const token = signAccessToken({
+      sub: "user-uuid",
+      email: "user@example.com",
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/portfolio/settlements?limit=20",
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(portfolioService.listSettlements)).toHaveBeenCalledWith({
+      userUuid: "user-uuid",
+      limit: 20,
+    });
+    expect(response.json()).toMatchObject({
+      items: [
+        {
+          uuid: "position-settlement-uuid",
+          payoutAmount: "3.0000",
+          status: "won",
+        },
+      ],
     });
 
     await server.close();

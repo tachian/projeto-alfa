@@ -8,6 +8,9 @@ vi.mock("../../lib/prisma.js", () => ({
     position: {
       findMany: vi.fn(),
     },
+    positionSettlement: {
+      findMany: vi.fn(),
+    },
     trade: {
       findMany: vi.fn(),
     },
@@ -130,5 +133,53 @@ describe("PortfolioService", () => {
       totalPnl: "1.2500",
       openPositions: 2,
     });
+  });
+
+  it("lists settlement history for the user portfolio", async () => {
+    mockedPrisma.positionSettlement.findMany.mockResolvedValue([
+      {
+        uuid: "position-settlement-uuid",
+        settlementRunUuid: "run-uuid",
+        marketUuid: "market-uuid",
+        outcome: "YES",
+        winningOutcome: "YES",
+        positionDirection: "long",
+        contractsSettled: 3,
+        payoutAmount: new Prisma.Decimal("3.0000"),
+        realizedPnlDelta: new Prisma.Decimal("1.2000"),
+        status: "won",
+        createdAt: new Date("2026-06-18T21:15:00.000Z"),
+        market: {
+          uuid: "market-uuid",
+          slug: "fed-cuts-rates-june",
+          title: "Fed cuts rates in June",
+          status: "resolved",
+          closeAt: new Date("2026-06-18T21:00:00.000Z"),
+        },
+      },
+    ] as never);
+
+    await expect(portfolioService.listSettlements({ userUuid: "user-uuid", limit: 20 })).resolves.toEqual([
+      {
+        uuid: "position-settlement-uuid",
+        settlementRunUuid: "run-uuid",
+        marketUuid: "market-uuid",
+        outcome: "YES",
+        winningOutcome: "YES",
+        positionDirection: "long",
+        contractsSettled: 3,
+        payoutAmount: "3.0000",
+        realizedPnlDelta: "1.2000",
+        status: "won",
+        createdAt: new Date("2026-06-18T21:15:00.000Z"),
+        market: {
+          uuid: "market-uuid",
+          slug: "fed-cuts-rates-june",
+          title: "Fed cuts rates in June",
+          status: "resolved",
+          closeAt: new Date("2026-06-18T21:00:00.000Z"),
+        },
+      },
+    ]);
   });
 });

@@ -323,6 +323,7 @@ export class SettlementService implements SettlementServiceContract {
       throw new SettlementError("A resolucao precisa estar marcada como resolved com resultado vencedor.", 400);
     }
 
+    const winningOutcome = run.marketResolution.winningOutcome;
     const contractValue = new Prisma.Decimal(run.market.contractValue);
     const settlementPriceForWinningOutcome = contractValue.mul(100);
 
@@ -343,19 +344,20 @@ export class SettlementService implements SettlementServiceContract {
         const quantity = Math.abs(position.netQuantity);
         const averageEntryPrice = new Prisma.Decimal(position.averageEntryPrice);
         const realizedPnl = new Prisma.Decimal(position.realizedPnl);
-        const contractSettlesAt =
-          position.outcome === run.marketResolution.winningOutcome ? settlementPriceForWinningOutcome : new Prisma.Decimal(0);
+        const contractSettlesAt = position.outcome === winningOutcome ? settlementPriceForWinningOutcome : new Prisma.Decimal(0);
         const settlementPnl =
           position.netQuantity > 0
             ? contractSettlesAt.minus(averageEntryPrice).mul(quantity).div(100)
             : averageEntryPrice.minus(contractSettlesAt).mul(quantity).div(100);
         const nextRealizedPnl = realizedPnl.plus(settlementPnl);
         const isWinningPosition =
-          (position.netQuantity > 0 && position.outcome === run.marketResolution.winningOutcome) ||
-          (position.netQuantity < 0 && position.outcome !== run.marketResolution.winningOutcome);
+          (position.netQuantity > 0 && position.outcome === winningOutcome) ||
+          (position.netQuantity < 0 && position.outcome !== winningOutcome);
+        const payoutAmount = isWinningPosition ? contractValue.mul(quantity) : new Prisma.Decimal(0);
+        const positionDirection = position.netQuantity > 0 ? "long" : "short";
+        const settlementStatus = isWinningPosition ? "won" : "lost";
 
         if (isWinningPosition) {
-          const payoutAmount = contractValue.mul(quantity);
           const userAccounts = await this.ledgerService.ensureUserAccounts(
             {
               userUuid: position.userUuid,
@@ -372,7 +374,7 @@ export class SettlementService implements SettlementServiceContract {
               metadata: {
                 marketUuid: run.marketUuid,
                 marketResolutionUuid: run.marketResolutionUuid,
-                winningOutcome: run.marketResolution.winningOutcome,
+                winningOutcome,
                 positionUuid: position.uuid,
                 outcome: position.outcome,
                 quantity,
@@ -406,6 +408,22 @@ export class SettlementService implements SettlementServiceContract {
           totalPayout = totalPayout.plus(payoutAmount);
         }
 
+        await tx.positionSettlement.create({
+          data: {
+            settlementRunUuid: run.uuid,
+            positionUuid: position.uuid,
+            userUuid: position.userUuid,
+            marketUuid: position.marketUuid,
+            outcome: position.outcome,
+            winningOutcome,
+            positionDirection,
+            contractsSettled: quantity,
+            payoutAmount,
+            realizedPnlDelta: settlementPnl,
+            status: settlementStatus,
+          },
+        });
+
         await tx.position.update({
           where: {
             uuid: position.uuid,
@@ -429,7 +447,7 @@ export class SettlementService implements SettlementServiceContract {
           metadata: {
             ...(run.metadata && typeof run.metadata === "object" && !Array.isArray(run.metadata) ? run.metadata : {}),
             executedByUserUuid: input.executedByUserUuid ?? null,
-            winningOutcome: run.marketResolution.winningOutcome,
+            winningOutcome,
           },
           finishedAt: new Date(),
         },

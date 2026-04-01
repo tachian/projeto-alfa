@@ -54,6 +54,22 @@ export const buildPortfolioRoutes = (
         return handleRouteError(error, reply);
       }
     });
+
+    fastify.get("/portfolio/settlements", async (request, reply) => {
+      try {
+        const query = listPositionsQuerySchema.parse(request.query);
+        const userUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+
+        return {
+          items: await portfolioService.listSettlements({
+            userUuid,
+            limit: query.limit,
+          }),
+        };
+      } catch (error) {
+        return handleRouteError(error, reply);
+      }
+    });
   };
 };
 

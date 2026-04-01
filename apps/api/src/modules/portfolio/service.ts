@@ -32,9 +32,31 @@ export type PortfolioPnlSummary = {
   openPositions: number;
 };
 
+export type PortfolioSettlementRecord = {
+  uuid: string;
+  settlementRunUuid: string;
+  marketUuid: string;
+  outcome: string;
+  winningOutcome: string;
+  positionDirection: string;
+  contractsSettled: number;
+  payoutAmount: string;
+  realizedPnlDelta: string;
+  status: string;
+  createdAt: Date;
+  market: {
+    uuid: string;
+    slug: string;
+    title: string;
+    status: string;
+    closeAt: Date;
+  };
+};
+
 export interface PortfolioServiceContract {
   listPositions(input: { userUuid: string; limit?: number }): Promise<PortfolioPositionRecord[]>;
   getPnlSummary(userUuid: string): Promise<PortfolioPnlSummary>;
+  listSettlements(input: { userUuid: string; limit?: number }): Promise<PortfolioSettlementRecord[]>;
 }
 
 const toMoneyString = (value: Prisma.Decimal) => value.toFixed(4);
@@ -129,6 +151,44 @@ export class PortfolioService implements PortfolioServiceContract {
       totalPnl: toMoneyString(totals.realizedPnl.plus(totals.unrealizedPnl)),
       openPositions: positions.filter((position) => position.netQuantity !== 0).length,
     };
+  }
+
+  async listSettlements(input: { userUuid: string; limit?: number }): Promise<PortfolioSettlementRecord[]> {
+    const settlements = await prisma.positionSettlement.findMany({
+      where: {
+        userUuid: input.userUuid,
+      },
+      include: {
+        market: {
+          select: {
+            uuid: true,
+            slug: true,
+            title: true,
+            status: true,
+            closeAt: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: input.limit ?? DEFAULT_POSITION_LIMIT,
+    });
+
+    return settlements.map((settlement) => ({
+      uuid: settlement.uuid,
+      settlementRunUuid: settlement.settlementRunUuid,
+      marketUuid: settlement.marketUuid,
+      outcome: settlement.outcome,
+      winningOutcome: settlement.winningOutcome,
+      positionDirection: settlement.positionDirection,
+      contractsSettled: settlement.contractsSettled,
+      payoutAmount: toMoneyString(new Prisma.Decimal(settlement.payoutAmount)),
+      realizedPnlDelta: toMoneyString(new Prisma.Decimal(settlement.realizedPnlDelta)),
+      status: settlement.status,
+      createdAt: settlement.createdAt,
+      market: settlement.market,
+    }));
   }
 }
 

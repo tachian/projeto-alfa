@@ -26,6 +26,9 @@ vi.mock("../../lib/prisma.js", () => ({
       findMany: vi.fn(),
       update: vi.fn(),
     },
+    positionSettlement: {
+      create: vi.fn(),
+    },
   },
 }));
 
@@ -51,6 +54,7 @@ describe("SettlementService", () => {
         marketResolution: mockedPrisma.marketResolution,
         settlementRun: mockedPrisma.settlementRun,
         position: mockedPrisma.position,
+        positionSettlement: mockedPrisma.positionSettlement,
       } as never));
     vi.mocked(mockedLedgerService.ensurePlatformAccounts).mockResolvedValue({
       custody: {
@@ -299,6 +303,9 @@ describe("SettlementService", () => {
     mockedPrisma.position.update
       .mockResolvedValueOnce({ uuid: "winner-position-uuid" } as never)
       .mockResolvedValueOnce({ uuid: "loser-position-uuid" } as never);
+    mockedPrisma.positionSettlement.create
+      .mockResolvedValueOnce({ uuid: "winner-position-settlement-uuid" } as never)
+      .mockResolvedValueOnce({ uuid: "loser-position-settlement-uuid" } as never);
     mockedPrisma.settlementRun.update.mockResolvedValue({
       uuid: "run-uuid",
       marketUuid: "market-uuid",
@@ -369,6 +376,42 @@ describe("SettlementService", () => {
           realizedPnl: new Prisma.Decimal("1.2000"),
         },
       }),
+    );
+    expect(mockedPrisma.positionSettlement.create).toHaveBeenNthCalledWith(
+      1,
+      {
+        data: {
+          settlementRunUuid: "run-uuid",
+          positionUuid: "winner-position-uuid",
+          userUuid: "winner-user-uuid",
+          marketUuid: "market-uuid",
+          outcome: "YES",
+          winningOutcome: "YES",
+          positionDirection: "long",
+          contractsSettled: 3,
+          payoutAmount: new Prisma.Decimal("3"),
+          realizedPnlDelta: new Prisma.Decimal("1.2000"),
+          status: "won",
+        },
+      },
+    );
+    expect(mockedPrisma.positionSettlement.create).toHaveBeenNthCalledWith(
+      2,
+      {
+        data: {
+          settlementRunUuid: "run-uuid",
+          positionUuid: "loser-position-uuid",
+          userUuid: "loser-user-uuid",
+          marketUuid: "market-uuid",
+          outcome: "YES",
+          winningOutcome: "YES",
+          positionDirection: "short",
+          contractsSettled: 3,
+          payoutAmount: new Prisma.Decimal("0"),
+          realizedPnlDelta: new Prisma.Decimal("-1.2000"),
+          status: "lost",
+        },
+      },
     );
     expect(mockedPrisma.position.update).toHaveBeenNthCalledWith(
       2,

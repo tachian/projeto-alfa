@@ -17,6 +17,7 @@ model User {
   refreshTokens RefreshToken[]
   orders        Order[]
   positions     Position[]
+  positionSettlements PositionSettlement[]
   accounts      Account[]
   ledgerEntries LedgerEntry[]
   payments      Payment[]
@@ -43,6 +44,7 @@ model Market {
   positions     Position[]
   resolutions   MarketResolution[]
   settlementRuns SettlementRun[]
+  positionSettlements PositionSettlement[]
 
   @@index([status, closeAt])
   @@map("markets")
@@ -60,6 +62,7 @@ model Position {
   updatedAt         DateTime @updatedAt @map("updated_at")
   user              User     @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
   market            Market   @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
+  settlements       PositionSettlement[]
 
   @@unique([userUuid, marketUuid, outcome])
   @@index([marketUuid, outcome])
@@ -155,11 +158,37 @@ model SettlementRun {
   updatedAt            DateTime         @updatedAt @map("updated_at")
   market               Market           @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
   marketResolution     MarketResolution @relation(fields: [marketResolutionUuid], references: [uuid], onDelete: Cascade)
+  positionSettlements  PositionSettlement[]
 
   @@index([marketUuid, createdAt])
   @@index([marketResolutionUuid])
   @@index([status, createdAt])
   @@map("settlement_runs")
+}
+
+model PositionSettlement {
+  uuid               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  settlementRunUuid  String        @db.Uuid @map("settlement_run_uuid")
+  positionUuid       String        @db.Uuid @map("position_uuid")
+  userUuid           String        @db.Uuid @map("user_uuid")
+  marketUuid         String        @db.Uuid @map("market_uuid")
+  outcome            String
+  winningOutcome     String        @map("winning_outcome")
+  positionDirection  String        @map("position_direction")
+  contractsSettled   Int           @map("contracts_settled")
+  payoutAmount       Decimal       @default(0) @db.Decimal(18, 4) @map("payout_amount")
+  realizedPnlDelta   Decimal       @default(0) @db.Decimal(18, 4) @map("realized_pnl_delta")
+  status             String
+  createdAt          DateTime      @default(now()) @map("created_at")
+  settlementRun      SettlementRun @relation(fields: [settlementRunUuid], references: [uuid], onDelete: Cascade)
+  position           Position      @relation(fields: [positionUuid], references: [uuid], onDelete: Cascade)
+  user               User          @relation(fields: [userUuid], references: [uuid], onDelete: Cascade)
+  market             Market        @relation(fields: [marketUuid], references: [uuid], onDelete: Cascade)
+
+  @@index([userUuid, createdAt])
+  @@index([marketUuid, createdAt])
+  @@index([settlementRunUuid])
+  @@map("position_settlements")
 }
 
 model Account {
