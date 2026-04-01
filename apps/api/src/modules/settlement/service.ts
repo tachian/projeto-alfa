@@ -41,6 +41,7 @@ export type CreateMarketResolutionInput = {
 };
 
 export type CreateSettlementRunInput = {
+  createdByUserUuid?: string | null;
   marketUuid: string;
   marketResolutionUuid: string;
   status?: string;
@@ -53,6 +54,7 @@ export type CreateSettlementRunInput = {
 
 export type UpdateSettlementRunInput = {
   settlementRunUuid: string;
+  updatedByUserUuid?: string | null;
   status?: string;
   contractsProcessed?: number;
   totalPayout?: Prisma.Decimal | number | string;
@@ -197,6 +199,18 @@ export class SettlementService implements SettlementServiceContract {
         return createdResolution;
       });
 
+      await writeAuditLog({
+        action: "settlement.resolution.created",
+        targetType: "market_resolution",
+        targetUuid: resolution.uuid,
+        actorUuid: input.resolvedByUserUuid ?? undefined,
+        payload: {
+          marketUuid: resolution.marketUuid,
+          status: resolution.status,
+          winningOutcome: resolution.winningOutcome,
+        },
+      });
+
       return mapMarketResolution(resolution);
     } catch (error) {
       if (error instanceof SettlementError) {
@@ -239,6 +253,18 @@ export class SettlementService implements SettlementServiceContract {
         },
       });
 
+      await writeAuditLog({
+        action: "settlement.run.created",
+        targetType: "settlement_run",
+        targetUuid: run.uuid,
+        actorUuid: input.createdByUserUuid ?? undefined,
+        payload: {
+          marketUuid: run.marketUuid,
+          marketResolutionUuid: run.marketResolutionUuid,
+          status: run.status,
+        },
+      });
+
       return mapSettlementRun(run);
     } catch (error) {
       if (isForeignKeyViolation(error)) {
@@ -271,6 +297,19 @@ export class SettlementService implements SettlementServiceContract {
           input.totalPayout === undefined ? undefined : toDecimal(input.totalPayout, existingRun.totalPayout.toString()),
         metadata: input.metadata,
         finishedAt: input.finishedAt,
+      },
+    });
+
+    await writeAuditLog({
+      action: "settlement.run.updated",
+      targetType: "settlement_run",
+      targetUuid: run.uuid,
+      actorUuid: input.updatedByUserUuid ?? undefined,
+      payload: {
+        previousStatus: existingRun.status,
+        status: run.status,
+        contractsProcessed: run.contractsProcessed,
+        totalPayout: run.totalPayout.toFixed(4),
       },
     });
 
@@ -458,6 +497,7 @@ export class SettlementService implements SettlementServiceContract {
       action: "settlement.run.executed",
       targetType: "settlement_run",
       targetUuid: settledRun.uuid,
+      actorUuid: input.executedByUserUuid ?? undefined,
       payload: {
         marketUuid: settledRun.marketUuid,
         contractsProcessed: settledRun.contractsProcessed,

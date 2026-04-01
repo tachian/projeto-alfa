@@ -115,6 +115,11 @@ describe("market admin routes", () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(vi.mocked(marketAdminService.createMarket)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        performedByUserUuid: "admin-user-uuid",
+      }),
+    );
     expect(response.json()).toMatchObject({
       market: {
         uuid: marketRecord.uuid,
@@ -180,6 +185,12 @@ describe("market admin routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(vi.mocked(marketAdminService.updateMarket)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        marketUuid: marketRecord.uuid,
+        performedByUserUuid: "admin-user-uuid",
+      }),
+    );
     expect(response.json()).toMatchObject({
       market: {
         status: "open",
@@ -208,5 +219,9 @@ describe("market admin routes", () => {
     });
 
     expect(response.statusCode).toBe(204);
+    expect(vi.mocked(marketAdminService.deleteMarket)).toHaveBeenCalledWith(
+      marketRecord.uuid,
+      "admin-user-uuid",
+    );
   });
 });

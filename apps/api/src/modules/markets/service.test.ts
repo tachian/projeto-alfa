@@ -80,9 +80,12 @@ describe("MarketAdminService", () => {
       action: "markets.admin.created",
       targetType: "market",
       targetUuid: "market-uuid",
+      actorUuid: undefined,
       payload: {
         slug: "fed-cuts-rates",
         status: "draft",
+        category: "macro",
+        outcomeType: "binary",
       },
     });
   });
@@ -107,6 +110,7 @@ describe("MarketAdminService", () => {
     await expect(
       marketAdminService.updateMarket({
         marketUuid: "market-uuid",
+        performedByUserUuid: "admin-uuid",
         status: "open",
         resolutionRules: "Updated rule",
       }),
@@ -114,6 +118,18 @@ describe("MarketAdminService", () => {
       status: "open",
       rules: {
         resolutionRules: "Updated rule",
+      },
+    });
+    expect(mockedWriteAuditLog).toHaveBeenCalledWith({
+      action: "markets.admin.updated",
+      targetType: "market",
+      targetUuid: "market-uuid",
+      actorUuid: "admin-uuid",
+      payload: {
+        previousStatus: "draft",
+        slug: "fed-cuts-rates",
+        status: "open",
+        closeAt: "2026-06-18T21:00:00.000Z",
       },
     });
   });
@@ -157,6 +173,7 @@ describe("MarketAdminService", () => {
       action: "markets.admin.deleted",
       targetType: "market",
       targetUuid: "market-uuid",
+      actorUuid: undefined,
     });
   });
 });

@@ -30,6 +30,7 @@ export type MarketAdminRecord = {
 };
 
 export type CreateMarketInput = {
+  performedByUserUuid?: string | null;
   slug: string;
   title: string;
   category: string;
@@ -53,7 +54,7 @@ export interface MarketAdminServiceContract {
   listMarkets(): Promise<MarketAdminRecord[]>;
   getMarket(marketUuid: string): Promise<MarketAdminRecord>;
   updateMarket(input: UpdateMarketInput): Promise<MarketAdminRecord>;
-  deleteMarket(marketUuid: string): Promise<void>;
+  deleteMarket(marketUuid: string, performedByUserUuid?: string | null): Promise<void>;
 }
 
 export class MarketAdminError extends Error {
@@ -156,9 +157,12 @@ export class MarketAdminService implements MarketAdminServiceContract {
         action: "markets.admin.created",
         targetType: "market",
         targetUuid: market.uuid,
+        actorUuid: input.performedByUserUuid ?? undefined,
         payload: {
           slug: market.slug,
           status: market.status,
+          category: market.category,
+          outcomeType: market.outcomeType,
         },
       });
 
@@ -265,9 +269,12 @@ export class MarketAdminService implements MarketAdminServiceContract {
         action: "markets.admin.updated",
         targetType: "market",
         targetUuid: market.uuid,
+        actorUuid: input.performedByUserUuid ?? undefined,
         payload: {
+          previousStatus: existingMarket.status,
           slug: market.slug,
           status: market.status,
+          closeAt: market.closeAt.toISOString(),
         },
       });
 
@@ -281,7 +288,7 @@ export class MarketAdminService implements MarketAdminServiceContract {
     }
   }
 
-  async deleteMarket(marketUuid: string): Promise<void> {
+  async deleteMarket(marketUuid: string, performedByUserUuid?: string | null): Promise<void> {
     try {
       await prisma.market.delete({
         where: {
@@ -300,6 +307,7 @@ export class MarketAdminService implements MarketAdminServiceContract {
       action: "markets.admin.deleted",
       targetType: "market",
       targetUuid: marketUuid,
+      actorUuid: performedByUserUuid ?? undefined,
     });
   }
 }

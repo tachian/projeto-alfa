@@ -114,10 +114,11 @@ export const buildSettlementRoutes = (
 
     fastify.post("/admin/markets/:marketUuid/settlement-runs", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
         const body = createSettlementRunSchema.parse(request.body);
         const settlementRun = await settlementService.createSettlementRun({
+          createdByUserUuid: adminUserUuid,
           marketUuid: params.marketUuid,
           marketResolutionUuid: body.marketResolutionUuid,
           status: body.status,
@@ -140,13 +141,14 @@ export const buildSettlementRoutes = (
 
     fastify.patch("/admin/settlement-runs/:settlementRunUuid", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
         const params = settlementRunUuidParamSchema.parse(request.params);
         const body = updateSettlementRunSchema.parse(request.body);
 
         return {
           settlementRun: await settlementService.updateSettlementRun({
             settlementRunUuid: params.settlementRunUuid,
+            updatedByUserUuid: adminUserUuid,
             status: body.status,
             contractsProcessed: body.contractsProcessed,
             totalPayout: body.totalPayout,

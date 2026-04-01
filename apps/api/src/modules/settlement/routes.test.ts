@@ -214,6 +214,17 @@ describe("settlement routes", () => {
     });
 
     expect(createResponse.statusCode).toBe(201);
+    expect(vi.mocked(settlementService.createSettlementRun)).toHaveBeenCalledWith({
+      createdByUserUuid: "admin-user-uuid",
+      marketUuid: "11111111-1111-4111-8111-111111111111",
+      marketResolutionUuid: "22222222-2222-4222-8222-222222222222",
+      status: "pending",
+      contractsProcessed: undefined,
+      totalPayout: undefined,
+      metadata: undefined,
+      startedAt: undefined,
+      finishedAt: undefined,
+    });
     expect(createResponse.json()).toMatchObject({
       settlementRun: {
         uuid: "run-uuid",
@@ -255,6 +266,17 @@ describe("settlement routes", () => {
     });
 
     expect(updateResponse.statusCode).toBe(200);
+    expect(vi.mocked(settlementService.updateSettlementRun)).toHaveBeenCalledWith({
+      settlementRunUuid: "33333333-3333-4333-8333-333333333333",
+      updatedByUserUuid: "admin-user-uuid",
+      status: "completed",
+      contractsProcessed: 12,
+      totalPayout: "8.5",
+      metadata: {
+        reviewed: true,
+      },
+      finishedAt: undefined,
+    });
     expect(updateResponse.json()).toMatchObject({
       settlementRun: {
         uuid: "run-uuid",

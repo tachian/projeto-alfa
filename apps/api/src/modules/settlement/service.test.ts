@@ -137,6 +137,17 @@ describe("SettlementService", () => {
         status: "resolved",
       },
     });
+    expect(mockedWriteAuditLog).toHaveBeenCalledWith({
+      action: "settlement.resolution.created",
+      targetType: "market_resolution",
+      targetUuid: "resolution-uuid",
+      actorUuid: "admin-uuid",
+      payload: {
+        marketUuid: "market-uuid",
+        status: "resolved",
+        winningOutcome: "YES",
+      },
+    });
   });
 
   it("creates, updates and lists settlement runs", async () => {
@@ -201,6 +212,7 @@ describe("SettlementService", () => {
 
     await expect(
       settlementService.createSettlementRun({
+        createdByUserUuid: "admin-uuid",
         marketUuid: "market-uuid",
         marketResolutionUuid: "resolution-uuid",
       }),
@@ -213,6 +225,7 @@ describe("SettlementService", () => {
     await expect(
       settlementService.updateSettlementRun({
         settlementRunUuid: "run-uuid",
+        updatedByUserUuid: "admin-uuid",
         status: "completed",
         contractsProcessed: 42,
         totalPayout: "12.5",
@@ -233,6 +246,18 @@ describe("SettlementService", () => {
         contractsProcessed: 42,
       }),
     ]);
+    expect(mockedWriteAuditLog).toHaveBeenCalledWith({
+      action: "settlement.run.updated",
+      targetType: "settlement_run",
+      targetUuid: "run-uuid",
+      actorUuid: "admin-uuid",
+      payload: {
+        previousStatus: "pending",
+        status: "completed",
+        contractsProcessed: 42,
+        totalPayout: "12.5000",
+      },
+    });
   });
 
   it("returns 404 when updating a missing settlement run", async () => {
@@ -430,6 +455,7 @@ describe("SettlementService", () => {
       action: "settlement.run.executed",
       targetType: "settlement_run",
       targetUuid: "run-uuid",
+      actorUuid: "admin-uuid",
       payload: {
         marketUuid: "market-uuid",
         contractsProcessed: 6,
