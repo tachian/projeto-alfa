@@ -45,6 +45,7 @@ describe("KycService", () => {
       uuid: "user-uuid",
       email: "user@example.com",
       passwordHash: "hash",
+      role: "user",
       status: "active",
       createdAt: new Date("2026-04-01T10:00:00.000Z"),
       updatedAt: new Date("2026-04-01T10:00:00.000Z"),

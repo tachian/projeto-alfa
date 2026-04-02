@@ -75,6 +75,7 @@ describe("order routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "user-uuid",
       email: "user@example.com",
+      role: "user",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),

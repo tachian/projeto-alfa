@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
+import { requireAdminUser } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import { MARKET_OUTCOME_TYPES, MARKET_STATUSES } from "./constants.js";
@@ -47,7 +47,7 @@ export const buildMarketAdminRoutes = (
   return async (fastify) => {
     fastify.get("/admin/markets", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
 
         return {
           items: await marketAdminService.listMarkets(),
@@ -59,7 +59,7 @@ export const buildMarketAdminRoutes = (
 
     fastify.get("/admin/markets/:marketUuid", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
 
         return {
@@ -72,11 +72,11 @@ export const buildMarketAdminRoutes = (
 
     fastify.post("/admin/markets", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const body = createMarketSchema.parse(request.body);
         const market = await marketAdminService.createMarket({
           ...body,
-          performedByUserUuid: adminUserUuid,
+          performedByUserUuid: adminUser.uuid,
         });
 
         reply.code(201);
@@ -91,14 +91,14 @@ export const buildMarketAdminRoutes = (
 
     fastify.patch("/admin/markets/:marketUuid", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
         const body = updateMarketSchema.parse(request.body);
 
         return {
           market: await marketAdminService.updateMarket({
             marketUuid: params.marketUuid,
-            performedByUserUuid: adminUserUuid,
+            performedByUserUuid: adminUser.uuid,
             ...body,
           }),
         };
@@ -109,9 +109,9 @@ export const buildMarketAdminRoutes = (
 
     fastify.delete("/admin/markets/:marketUuid", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
-        await marketAdminService.deleteMarket(params.marketUuid, adminUserUuid);
+        await marketAdminService.deleteMarket(params.marketUuid, adminUser.uuid);
 
         reply.code(204);
 

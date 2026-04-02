@@ -167,6 +167,7 @@ class InMemoryExchange
     const user: UserState = {
       uuid,
       email: input.email,
+      role: input.email === "admin@example.com" ? "admin" : "user",
       password: input.password,
       status: "active",
       createdAt,

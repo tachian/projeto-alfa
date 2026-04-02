@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 .PHONY: help install setup infra-up infra-down infra-logs db-generate db-migrate db-migrate-dev \
-	api-dev admin-dev worker-dev dev lint test typecheck build clean check
+	api-dev admin-dev worker-dev dev lint test load-test typecheck build clean check
 
 help:
 	@echo "Comandos disponiveis:"
@@ -20,6 +20,7 @@ help:
 	@echo "  make dev             - sobe todos os apps do monorepo em paralelo"
 	@echo "  make lint            - roda ESLint"
 	@echo "  make test            - roda os testes"
+	@echo "  make load-test       - executa teste de carga basico do api"
 	@echo "  make typecheck       - roda o TypeScript sem emitir build"
 	@echo "  make build           - gera build de todos os workspaces"
 	@echo "  make clean           - limpa artefatos de build"
@@ -65,6 +66,9 @@ lint:
 
 test:
 	pnpm test
+
+load-test:
+	pnpm load:test
 
 typecheck:
 	pnpm typecheck

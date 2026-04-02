@@ -283,6 +283,7 @@ describe("orders sprint 4 e2e", () => {
     getCurrentUser: async (userUuid: string) => ({
       uuid: userUuid,
       email: `${userUuid}@example.com`,
+      role: "user",
       status: "active",
       createdAt: new Date("2026-03-31T09:00:00.000Z"),
       updatedAt: new Date("2026-03-31T09:00:00.000Z"),

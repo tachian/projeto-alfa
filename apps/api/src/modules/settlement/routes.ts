@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
+import { requireAdminUser } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import type { SettlementServiceContract } from "./service.js";
@@ -63,7 +63,7 @@ export const buildSettlementRoutes = (
   return async (fastify) => {
     fastify.get("/admin/markets/:marketUuid/resolutions", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
 
         return {
@@ -76,7 +76,7 @@ export const buildSettlementRoutes = (
 
     fastify.post("/admin/markets/:marketUuid/resolutions", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
         const body = createResolutionSchema.parse(request.body);
         const resolution = await settlementService.createMarketResolution({
@@ -86,7 +86,7 @@ export const buildSettlementRoutes = (
           status: body.status,
           notes: body.notes,
           resolvedAt: body.resolvedAt,
-          resolvedByUserUuid: adminUserUuid,
+          resolvedByUserUuid: adminUser.uuid,
         });
 
         reply.code(201);
@@ -101,7 +101,7 @@ export const buildSettlementRoutes = (
 
     fastify.get("/admin/markets/:marketUuid/settlement-runs", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
 
         return {
@@ -114,11 +114,11 @@ export const buildSettlementRoutes = (
 
     fastify.post("/admin/markets/:marketUuid/settlement-runs", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = marketUuidParamSchema.parse(request.params);
         const body = createSettlementRunSchema.parse(request.body);
         const settlementRun = await settlementService.createSettlementRun({
-          createdByUserUuid: adminUserUuid,
+          createdByUserUuid: adminUser.uuid,
           marketUuid: params.marketUuid,
           marketResolutionUuid: body.marketResolutionUuid,
           status: body.status,
@@ -141,14 +141,14 @@ export const buildSettlementRoutes = (
 
     fastify.patch("/admin/settlement-runs/:settlementRunUuid", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = settlementRunUuidParamSchema.parse(request.params);
         const body = updateSettlementRunSchema.parse(request.body);
 
         return {
           settlementRun: await settlementService.updateSettlementRun({
             settlementRunUuid: params.settlementRunUuid,
-            updatedByUserUuid: adminUserUuid,
+            updatedByUserUuid: adminUser.uuid,
             status: body.status,
             contractsProcessed: body.contractsProcessed,
             totalPayout: body.totalPayout,
@@ -163,13 +163,13 @@ export const buildSettlementRoutes = (
 
     fastify.post("/admin/settlement-runs/:settlementRunUuid/execute", async (request, reply) => {
       try {
-        const adminUserUuid = await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        const adminUser = await requireAdminUser(request.headers.authorization, authService);
         const params = settlementRunUuidParamSchema.parse(request.params);
 
         return {
           settlementRun: await settlementService.executeSettlementRun({
             settlementRunUuid: params.settlementRunUuid,
-            executedByUserUuid: adminUserUuid,
+            executedByUserUuid: adminUser.uuid,
           }),
         };
       } catch (error) {

@@ -74,4 +74,22 @@ describe("buildServer", () => {
 
     await server.close();
   });
+
+  it("sends baseline security headers", async () => {
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/health/live",
+    });
+
+    expect(response.headers["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers["x-frame-options"]).toBe("DENY");
+    expect(response.headers["referrer-policy"]).toBe("no-referrer");
+    expect(response.headers["x-robots-tag"]).toBe("noindex, nofollow");
+
+    await server.close();
+  });
 });

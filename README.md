@@ -72,6 +72,7 @@ Comandos principais:
 - `make dev`: sobe todos os apps do monorepo
 - `make lint`: roda ESLint
 - `make test`: roda os testes
+- `make load-test`: executa teste de carga basico do `api`
 - `make typecheck`: roda TypeScript sem emitir build
 - `make build`: gera build de todos os workspaces
 - `make clean`: limpa artefatos de build
@@ -85,6 +86,7 @@ Scripts da raiz:
 - `pnpm build`: gera build de todos os workspaces
 - `pnpm lint`: roda ESLint nos workspaces
 - `pnpm test`: roda a suite de testes do monorepo
+- `pnpm load:test`: executa o teste de carga basico do `api`
 - `pnpm typecheck`: roda TypeScript em todos os workspaces
 - `pnpm clean`: limpa artefatos de build
 - `pnpm db:generate`: gera o Prisma Client do `api`
@@ -97,6 +99,7 @@ Scripts por app:
 - `pnpm --filter @projeto-alfa/api build`
 - `pnpm --filter @projeto-alfa/api lint`
 - `pnpm --filter @projeto-alfa/api test`
+- `pnpm --filter @projeto-alfa/api load:test`
 - `pnpm --filter @projeto-alfa/api typecheck`
 - `pnpm --filter @projeto-alfa/api clean`
 - `pnpm --filter @projeto-alfa/api db:generate`
@@ -204,6 +207,38 @@ Observabilidade e reconciliacao:
 - `GET /admin/reconciliation/report`: relatorio operacional de reconciliacao
 - Prometheus agora carrega regras em [alerts.yml](/home/tachian/work/projeto-alfa/infra/prometheus/alerts.yml)
 - O Prometheus local raspa a API em `host.docker.internal:4000`
+
+Controles de seguranca basicos implementados:
+
+- rotas `/admin/*` exigem usuario autenticado com `role=admin`
+- respostas da API enviam `x-content-type-options: nosniff`
+- respostas da API enviam `x-frame-options: DENY`
+- respostas da API enviam `referrer-policy: no-referrer`
+- respostas da API enviam `x-robots-tag: noindex, nofollow`
+
+Teste de carga basico:
+
+```bash
+make load-test
+```
+
+Ou, com parametrizacao:
+
+```bash
+LOAD_TEST_URL=http://127.0.0.1:4000 \
+LOAD_TEST_PATH=/health/ready \
+LOAD_TEST_CONCURRENCY=20 \
+LOAD_TEST_REQUESTS=500 \
+pnpm load:test
+```
+
+Variaveis suportadas:
+
+- `LOAD_TEST_URL`
+- `LOAD_TEST_PATH`
+- `LOAD_TEST_CONCURRENCY`
+- `LOAD_TEST_REQUESTS`
+- `LOAD_TEST_TIMEOUT_MS`
 
 Depois de conectar, envie comandos JSON como:
 

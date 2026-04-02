@@ -77,6 +77,7 @@ describe("market admin routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "admin-user-uuid",
       email: "admin@example.com",
+      role: "admin",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -155,6 +156,40 @@ describe("market admin routes", () => {
           uuid: marketRecord.uuid,
         },
       ],
+    });
+  });
+
+  it("returns 403 for non-admin users on admin listing", async () => {
+    vi.mocked(authService.getCurrentUser).mockResolvedValue({
+      uuid: "user-uuid",
+      email: "user@example.com",
+      role: "user",
+      status: "active",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      authService,
+      marketAdminService,
+    });
+    const token = signAccessToken({
+      sub: "user-uuid",
+      email: "user@example.com",
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/markets",
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      message: "Acesso restrito a administradores.",
     });
   });
 

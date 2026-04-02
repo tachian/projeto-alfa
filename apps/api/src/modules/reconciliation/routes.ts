@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
+import { requireAdminUser } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import type { ReconciliationServiceContract } from "./service.js";
@@ -12,7 +12,7 @@ export const buildReconciliationRoutes = (
   return async (fastify) => {
     fastify.get("/admin/reconciliation/report", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
 
         return await reconciliationService.generateReport();
       } catch (error) {

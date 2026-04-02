@@ -2,7 +2,7 @@ import type { AuthServiceContract } from "./service.js";
 import { AuthError } from "./service.js";
 import { verifyAccessToken } from "./tokens.js";
 
-export const getAuthenticatedUserUuid = async (
+export const getAuthenticatedUser = async (
   authorizationHeader: string | undefined,
   authService: AuthServiceContract,
 ) => {
@@ -14,9 +14,7 @@ export const getAuthenticatedUserUuid = async (
 
   try {
     const payload = verifyAccessToken(accessToken);
-    await authService.getCurrentUser(payload.sub);
-
-    return payload.sub;
+    return await authService.getCurrentUser(payload.sub);
   } catch (error) {
     if (error instanceof AuthError) {
       throw error;
@@ -24,4 +22,25 @@ export const getAuthenticatedUserUuid = async (
 
     throw new AuthError("Token de acesso invalido.", 401);
   }
+};
+
+export const getAuthenticatedUserUuid = async (
+  authorizationHeader: string | undefined,
+  authService: AuthServiceContract,
+) => {
+  const user = await getAuthenticatedUser(authorizationHeader, authService);
+  return user.uuid;
+};
+
+export const requireAdminUser = async (
+  authorizationHeader: string | undefined,
+  authService: AuthServiceContract,
+) => {
+  const user = await getAuthenticatedUser(authorizationHeader, authService);
+
+  if (user.role !== "admin") {
+    throw new AuthError("Acesso restrito a administradores.", 403);
+  }
+
+  return user;
 };

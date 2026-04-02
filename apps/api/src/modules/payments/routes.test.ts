@@ -57,6 +57,7 @@ describe("payment routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "user-uuid",
       email: "wallet@example.com",
+      role: "user",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -132,6 +133,7 @@ describe("payment routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "user-uuid",
       email: "wallet@example.com",
+      role: "user",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -173,6 +175,7 @@ describe("payment routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "user-uuid",
       email: "wallet@example.com",
+      role: "user",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),

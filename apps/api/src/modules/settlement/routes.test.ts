@@ -56,6 +56,7 @@ describe("settlement routes", () => {
     vi.mocked(authService.getCurrentUser).mockResolvedValue({
       uuid: "admin-user-uuid",
       email: "admin@example.com",
+      role: "admin",
       status: "active",
       createdAt: new Date(),
       updatedAt: new Date(),

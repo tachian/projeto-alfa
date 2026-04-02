@@ -16,6 +16,7 @@ import type { AuthResult, AuthTokens, LoginInput, RegisterInput } from "./types.
 export type CurrentUser = {
   uuid: string;
   email: string;
+  role: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
@@ -51,12 +52,14 @@ const computeExpiryDate = (token: string) => {
 const mapUser = (user: {
   uuid: string;
   email: string;
+  role: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
   uuid: user.uuid,
   email: user.email,
+  role: user.role,
   status: user.status,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
@@ -80,6 +83,7 @@ export class AuthService implements AuthServiceContract {
       data: {
         email: input.email,
         passwordHash,
+        role: "user",
         status: "pending_verification",
       },
     });

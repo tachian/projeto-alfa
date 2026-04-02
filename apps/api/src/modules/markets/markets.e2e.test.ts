@@ -212,6 +212,7 @@ describe("markets sprint 3 e2e", () => {
     getCurrentUser: async () => ({
       uuid: "admin-user-uuid",
       email: "admin@example.com",
+      role: "admin",
       status: "active",
       createdAt: new Date("2026-03-30T09:00:00.000Z"),
       updatedAt: new Date("2026-03-30T09:00:00.000Z"),

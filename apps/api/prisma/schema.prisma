@@ -11,6 +11,7 @@ model User {
   uuid          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email         String         @unique
   passwordHash  String         @map("password_hash")
+  role          String         @default("user")
   status        String         @default("active")
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")

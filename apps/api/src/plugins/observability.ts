@@ -17,6 +17,7 @@ const observabilityPlugin: FastifyPluginAsync = async (fastify) => {
   };
 
   fastify.addHook("onRequest", async (request) => {
+    request.headers["x-content-type-options"] = undefined;
     const headerRequestUuid = request.headers["x-request-id"];
     const requestUuid =
       typeof headerRequestUuid === "string" && isUuid(headerRequestUuid)
@@ -74,6 +75,15 @@ const observabilityPlugin: FastifyPluginAsync = async (fastify) => {
       },
       "request completed",
     );
+  });
+
+  fastify.addHook("onSend", async (_request, reply, payload) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-frame-options", "DENY");
+    reply.header("referrer-policy", "no-referrer");
+    reply.header("x-robots-tag", "noindex, nofollow");
+
+    return payload;
   });
 
   fastify.addHook("onError", async (request, reply, error) => {

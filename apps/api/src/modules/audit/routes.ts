@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
+import { requireAdminUser } from "../auth/authenticated-user.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import type { AuditServiceContract } from "./service.js";
@@ -22,7 +22,7 @@ export const buildAuditRoutes = (
   return async (fastify) => {
     fastify.get("/admin/audit-logs", async (request, reply) => {
       try {
-        await getAuthenticatedUserUuid(request.headers.authorization, authService);
+        await requireAdminUser(request.headers.authorization, authService);
         const query = listAuditLogsSchema.parse(request.query);
 
         return await auditService.listAuditLogs(query);

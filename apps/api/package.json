@@ -8,6 +8,7 @@
     "build": "tsc --project tsconfig.json",
     "lint": "eslint src --ext .ts --max-warnings=0",
     "test": "vitest run",
+    "load:test": "node --experimental-strip-types src/scripts/load-test.ts",
     "typecheck": "tsc --noEmit --project tsconfig.json",
     "clean": "rm -rf dist",
     "db:generate": "XDG_CACHE_HOME=../../.cache prisma generate --schema prisma/schema.prisma",
