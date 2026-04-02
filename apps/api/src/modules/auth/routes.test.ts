@@ -32,6 +32,7 @@ const testDependenciesPlugin: FastifyPluginAsync = fp(async (fastify) => {
 const makeUser = () => ({
   uuid: "11111111-1111-1111-1111-111111111111",
   email: "user@example.com",
+  role: "user",
   status: "active",
   createdAt: new Date("2026-03-27T10:00:00.000Z"),
   updatedAt: new Date("2026-03-27T10:00:00.000Z"),
