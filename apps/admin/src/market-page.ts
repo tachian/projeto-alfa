@@ -623,7 +623,7 @@ export const renderMarketPage = (input: {
                 <label class="field-label">Regras de resolucao<textarea name="resolutionRules" required></textarea></label>
                 <button type="submit" id="save-market">Salvar alteracoes</button>
               </form>
-              <div id="admin-status" class="admin-status">Cole um token valido para editar, suspender, fechar ou listar suas ordens.</div>
+              <div id="admin-status" class="admin-status">Validando sessao do admin para liberar as acoes desta pagina.</div>
             </div>
           </article>
 
@@ -722,6 +722,10 @@ export const renderMarketPage = (input: {
         node.textContent = label;
       };
 
+      const redirectToLogin = () => {
+        window.location.href = "/login";
+      };
+
       const getToken = () => document.getElementById("auth-token").value.trim();
 
       const getHeaders = () => {
@@ -753,6 +757,30 @@ export const renderMarketPage = (input: {
         }
 
         return payload;
+      };
+
+      const bootstrapSession = async () => {
+        const accessToken = window.ProjetoAlfaSession.getAccessToken();
+
+        if (!accessToken) {
+          redirectToLogin();
+          return false;
+        }
+
+        try {
+          const payload = await fetchJson("/api/auth/me", {
+            method: "GET",
+          });
+
+          window.ProjetoAlfaSession.updateUser(payload.user);
+          document.getElementById("auth-token").value = accessToken;
+          setAdminStatus("Sessao validada. Carregando operacao do mercado...", "success");
+          return true;
+        } catch {
+          window.ProjetoAlfaSession.clear();
+          redirectToLogin();
+          return false;
+        }
       };
 
       const renderRows = (bodyId, emptyMessage, rows) => {
@@ -1130,7 +1158,6 @@ export const renderMarketPage = (input: {
         });
       };
 
-      document.getElementById("auth-token").value = window.ProjetoAlfaSession.getAccessToken();
       document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
       document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
@@ -1154,8 +1181,21 @@ export const renderMarketPage = (input: {
         await submitUpdate({ status: "closed" });
       });
 
-      Promise.all([loadMarket(), loadOrderBook(), loadRecentTrades(), loadUserOrders(), loadResolutions(), loadSettlementRuns()])
-        .then(() => connectRealtime())
+      bootstrapSession()
+        .then((isAuthenticated) => {
+          if (!isAuthenticated) {
+            return;
+          }
+
+          return Promise.all([
+            loadMarket(),
+            loadOrderBook(),
+            loadRecentTrades(),
+            loadUserOrders(),
+            loadResolutions(),
+            loadSettlementRuns(),
+          ]).then(() => connectRealtime());
+        })
         .catch((error) => setError(error.message));
     </script>
   </body>

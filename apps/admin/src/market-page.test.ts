@@ -19,5 +19,7 @@ describe("renderMarketPage", () => {
     expect(html).toContain("Guiar resolucao e liquidacao");
     expect(html).toContain("Executar ultimo run");
     expect(html).toContain("window.ProjetoAlfaSession");
+    expect(html).toContain("/api/auth/me");
+    expect(html).toContain("Validando sessao do admin");
   });
 });
