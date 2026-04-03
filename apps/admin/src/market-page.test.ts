@@ -21,6 +21,7 @@ describe("renderMarketPage", () => {
     expect(html).toContain("window.ProjetoAlfaSession");
     expect(html).toContain("/api/auth/me");
     expect(html).toContain("Validando sessao do admin");
+    expect(html).toContain("getAccessToken()");
     expect(html).toContain("requireAdminSession");
     expect(html).toContain("Acesso restrito");
   });

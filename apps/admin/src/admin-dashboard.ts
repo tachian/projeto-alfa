@@ -460,7 +460,7 @@ export const renderAdminDashboardPage = (input: {
       };
 
       const authHeaders = () => {
-        const token = getToken();
+        const token = window.ProjetoAlfaSession.getAccessToken();
         return token ? { Authorization: "Bearer " + token } : {};
       };
 

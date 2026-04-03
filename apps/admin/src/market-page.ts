@@ -493,7 +493,7 @@ export const renderMarketPage = (input: {
             <div class="panel-body">
               <div class="eyebrow">Minha atividade</div>
               <h2>Ordens do usuario</h2>
-              <p class="section-copy">Cole um bearer token valido para ver apenas as suas ordens neste mercado.</p>
+              <p class="section-copy">As ordens desta area usam automaticamente a sessao autenticada do admin.</p>
               <div class="admin-toolbar">
                 <button type="button" id="refresh-orders" class="secondary">Atualizar ordens</button>
               </div>
@@ -752,7 +752,7 @@ export const renderMarketPage = (input: {
       const getToken = () => document.getElementById("auth-token").value.trim();
 
       const getHeaders = () => {
-        const token = getToken();
+        const token = window.ProjetoAlfaSession.getAccessToken();
         return token ? { Authorization: "Bearer " + token } : {};
       };
 
@@ -971,7 +971,7 @@ export const renderMarketPage = (input: {
       };
 
       const loadUserOrders = async () => {
-        if (!getToken()) {
+        if (!window.ProjetoAlfaSession.getAccessToken()) {
           renderUserOrders([]);
           return;
         }
@@ -986,7 +986,7 @@ export const renderMarketPage = (input: {
       };
 
       const loadResolutions = async () => {
-        if (!getToken()) {
+        if (!window.ProjetoAlfaSession.getAccessToken()) {
           renderResolutions([]);
           return;
         }
@@ -1001,7 +1001,7 @@ export const renderMarketPage = (input: {
       };
 
       const loadSettlementRuns = async () => {
-        if (!getToken()) {
+        if (!window.ProjetoAlfaSession.getAccessToken()) {
           renderSettlementRuns([]);
           return;
         }
