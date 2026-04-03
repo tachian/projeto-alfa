@@ -56,6 +56,15 @@ export const renderSessionClientScript = () => {
         localStorage.removeItem(projetoAlfaSessionStorageKey);
         localStorage.removeItem(projetoAlfaTokenStorageKey);
       },
+      updateUser(user) {
+        const session = this.get();
+        if (!session) {
+          return;
+        }
+
+        session.user = user;
+        this.save(session);
+      },
       getAccessToken() {
         const session = this.get();
         if (session?.tokens?.accessToken) {

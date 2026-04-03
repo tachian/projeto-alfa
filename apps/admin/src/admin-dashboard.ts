@@ -63,6 +63,13 @@ export const renderAdminDashboardPage = (input: {
         padding: 32px;
       }
 
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+      }
+
       .panel {
         padding: 24px;
       }
@@ -188,6 +195,33 @@ export const renderAdminDashboardPage = (input: {
         color: var(--danger);
       }
 
+      .identity-card {
+        min-width: 240px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .identity-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .identity-value {
+        margin-top: 6px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .identity-meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
       .market-list {
         display: grid;
         gap: 14px;
@@ -265,6 +299,10 @@ export const renderAdminDashboardPage = (input: {
         .layout {
           grid-template-columns: 1fr;
         }
+
+        .hero-top {
+          flex-direction: column;
+        }
       }
 
       @media (max-width: 720px) {
@@ -278,16 +316,25 @@ export const renderAdminDashboardPage = (input: {
   <body>
     <main class="shell">
       <section class="hero">
-        <div class="eyebrow">${safeAppName}</div>
-        <h1>Operacao de mercados em um so painel</h1>
-        <p>Crie mercados, ajuste regras, suspenda contratos e feche listagens com o mesmo fluxo usado pela API administrativa.</p>
+        <div class="hero-top">
+          <div>
+            <div class="eyebrow">${safeAppName}</div>
+            <h1>Operacao de mercados em um so painel</h1>
+            <p>Crie mercados, ajuste regras, suspenda contratos e feche listagens com o mesmo fluxo usado pela API administrativa.</p>
+          </div>
+          <aside class="identity-card">
+            <div class="identity-label">Sessao</div>
+            <div id="identity-email" class="identity-value">Nao autenticado</div>
+            <div id="identity-meta" class="identity-meta">O dashboard valida a sessao ao carregar.</div>
+          </aside>
+        </div>
       </section>
 
       <section class="layout">
         <article class="panel">
           <div class="eyebrow">Sessao</div>
           <h2>Token e criacao</h2>
-          <p>Use um token JWT valido do api para operar as rotas administrativas.</p>
+          <p>O dashboard valida a sessao automaticamente e reutiliza o token salvo para operar as rotas administrativas.</p>
 
           <div class="field-grid">
             <label>
@@ -345,7 +392,7 @@ export const renderAdminDashboardPage = (input: {
           <div class="eyebrow">Mercados</div>
           <h2>Lista administrativa</h2>
           <p>Use a listagem para abrir a ficha completa, suspender rapidamente ou encerrar o mercado quando chegar a hora.</p>
-          <div id="dashboard-status" class="status">Cole um token e carregue a lista para operar.</div>
+          <div id="dashboard-status" class="status">Validando sessao do admin...</div>
           <div id="market-list" class="market-list"></div>
         </article>
       </section>
@@ -362,6 +409,15 @@ export const renderAdminDashboardPage = (input: {
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
         statusNode.dataset.tone = tone;
+      };
+
+      const setIdentity = (input) => {
+        document.getElementById("identity-email").textContent = input.email;
+        document.getElementById("identity-meta").textContent = input.meta;
+      };
+
+      const redirectToLogin = () => {
+        window.location.href = "/login";
       };
 
       const getToken = () => tokenNode.value.trim();
@@ -435,6 +491,34 @@ export const renderAdminDashboardPage = (input: {
         }
 
         return payload;
+      };
+
+      const bootstrapSession = async () => {
+        const accessToken = window.ProjetoAlfaSession.getAccessToken();
+
+        if (!accessToken) {
+          redirectToLogin();
+          return false;
+        }
+
+        try {
+          const payload = await fetchJson("/api/auth/me", {
+            method: "GET",
+          });
+
+          window.ProjetoAlfaSession.updateUser(payload.user);
+          tokenNode.value = accessToken;
+          setIdentity({
+            email: payload.user.email,
+            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+          });
+          setStatus("Sessao validada. Carregando mercados...", "success");
+          return true;
+        } catch {
+          window.ProjetoAlfaSession.clear();
+          redirectToLogin();
+          return false;
+        }
       };
 
       const loadMarkets = async () => {
@@ -516,9 +600,11 @@ export const renderAdminDashboardPage = (input: {
         updateMarketStatus(marketUuid, nextStatus);
       });
 
-      if (tokenNode.value) {
-        loadMarkets();
-      }
+      bootstrapSession().then((isAuthenticated) => {
+        if (isAuthenticated) {
+          loadMarkets();
+        }
+      });
     </script>
   </body>
 </html>`;

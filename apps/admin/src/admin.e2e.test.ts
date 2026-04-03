@@ -204,6 +204,53 @@ describe("admin sprint 3 e2e", () => {
     });
   });
 
+  it("forwards auth me requests for dashboard session validation", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            uuid: "admin-user-uuid",
+            email: "user@example.com",
+            role: "admin",
+            status: "active",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const authMeResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(authMeResponse.status).toBe(200);
+    expect(authMeResponse.json()).toEqual({
+      user: {
+        uuid: "admin-user-uuid",
+        email: "user@example.com",
+        role: "admin",
+        status: "active",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/auth/me", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+  });
+
   it("serves the admin dashboard and forwards create/list market requests", async () => {
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(

@@ -127,6 +127,16 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/auth/me" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/auth/me",
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname.startsWith("/markets/")) {
     const marketUuid = pathname.replace("/markets/", "").trim();
 

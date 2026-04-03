@@ -9,8 +9,10 @@ describe("renderAdminDashboardPage", () => {
 
     expect(html).toContain("Criar mercado");
     expect(html).toContain("/api/admin/markets");
+    expect(html).toContain("/api/auth/me");
     expect(html).toContain("Suspender");
     expect(html).toContain("Fechar");
     expect(html).toContain("window.ProjetoAlfaSession");
+    expect(html).toContain("Nao autenticado");
   });
 });
