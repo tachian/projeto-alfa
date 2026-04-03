@@ -449,8 +449,9 @@ export const renderAdminDashboardPage = (input: {
         setStatus("Acesso restrito a administradores.", "danger");
       };
 
-      const redirectToLogin = () => {
-        window.location.href = "/login";
+      const redirectToLogin = (reason = "") => {
+        const targetUrl = window.ProjetoAlfaSession.buildLoginRedirectUrl(reason);
+        window.location.href = targetUrl;
       };
 
       const getToken = () => tokenNode.value.trim();
@@ -559,9 +560,10 @@ export const renderAdminDashboardPage = (input: {
           });
           setStatus("Sessao validada. Carregando mercados...", "success");
           return true;
-        } catch {
+        } catch (error) {
           window.ProjetoAlfaSession.clear();
-          redirectToLogin();
+          const reason = error?.code === "unauthenticated" ? "expired" : "";
+          redirectToLogin(reason);
           return false;
         }
       };

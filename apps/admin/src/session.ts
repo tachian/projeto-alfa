@@ -162,6 +162,15 @@ export const renderSessionClientScript = () => {
 
         return user;
       },
+      buildLoginRedirectUrl(reason) {
+        const url = new URL("/login", window.location.origin);
+
+        if (reason) {
+          url.searchParams.set("reason", reason);
+        }
+
+        return url.toString();
+      },
     };
 
     window.ProjetoAlfaSession = projetoAlfaSession;

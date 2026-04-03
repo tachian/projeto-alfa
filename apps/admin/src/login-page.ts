@@ -257,6 +257,7 @@ export const renderLoginPage = (input: {
       const form = document.getElementById("login-form");
       const statusNode = document.getElementById("login-status");
       const submitButton = document.getElementById("submit-button");
+      const currentUrl = new URL(window.location.href);
 
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
@@ -269,6 +270,10 @@ export const renderLoginPage = (input: {
       };
 
       const resolveLoginErrorMessage = (input) => {
+        if (input.reason === "expired") {
+          return "Sua sessao expirou. Faca login novamente para continuar.";
+        }
+
         if (input.status === 401) {
           return "Email ou senha invalidos. Revise as credenciais e tente novamente.";
         }
@@ -283,6 +288,11 @@ export const renderLoginPage = (input: {
 
         return input.message || "Nao foi possivel autenticar no admin.";
       };
+
+      const expiredReason = currentUrl.searchParams.get("reason");
+      if (expiredReason === "expired") {
+        setStatus(resolveLoginErrorMessage({ reason: "expired" }), "danger");
+      }
 
       form.addEventListener("submit", async (event) => {
         event.preventDefault();

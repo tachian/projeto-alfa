@@ -737,8 +737,9 @@ export const renderMarketPage = (input: {
         node.textContent = label;
       };
 
-      const redirectToLogin = () => {
-        window.location.href = "/login";
+      const redirectToLogin = (reason = "") => {
+        const targetUrl = window.ProjetoAlfaSession.buildLoginRedirectUrl(reason);
+        window.location.href = targetUrl;
       };
 
       const showAccessDenied = () => {
@@ -810,9 +811,10 @@ export const renderMarketPage = (input: {
           document.getElementById("auth-token").value = accessToken;
           setAdminStatus("Sessao validada. Carregando operacao do mercado...", "success");
           return true;
-        } catch {
+        } catch (error) {
           window.ProjetoAlfaSession.clear();
-          redirectToLogin();
+          const reason = error?.code === "unauthenticated" ? "expired" : "";
+          redirectToLogin(reason);
           return false;
         }
       };
