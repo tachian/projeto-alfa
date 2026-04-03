@@ -94,6 +94,63 @@ export const renderSessionClientScript = () => {
           localStorage.removeItem(projetoAlfaTokenStorageKey);
         }
       },
+      async refresh() {
+        const session = this.get();
+        const refreshToken = session?.tokens?.refreshToken;
+
+        if (!refreshToken) {
+          this.clear();
+          throw createProjetoAlfaSessionError("unauthenticated", "Refresh token ausente.");
+        }
+
+        const response = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refreshToken,
+          }),
+        });
+
+        const payloadText = await response.text();
+        const payload = payloadText ? JSON.parse(payloadText) : null;
+
+        if (!response.ok) {
+          this.clear();
+          throw createProjetoAlfaSessionError(
+            "unauthenticated",
+            payload?.message ?? "Nao foi possivel renovar a sessao.",
+          );
+        }
+
+        this.save(payload);
+        return payload;
+      },
+      async fetchWithAuth(url, options = {}) {
+        const execute = async () => {
+          const token = this.getAccessToken();
+          const headers = {
+            ...(options.headers ?? {}),
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+          };
+
+          return fetch(url, {
+            ...options,
+            headers,
+          });
+        };
+
+        let response = await execute();
+
+        if (response.status !== 401) {
+          return response;
+        }
+
+        await this.refresh();
+        response = await execute();
+        return response;
+      },
       requireAdminSession(user) {
         if (!user) {
           throw createProjetoAlfaSessionError("unauthenticated", "Sessao ausente.");

@@ -763,11 +763,10 @@ export const renderMarketPage = (input: {
       };
 
       const fetchJson = async (url, options = {}) => {
-        const response = await fetch(url, {
+        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
           ...options,
           headers: {
             "Content-Type": "application/json",
-            ...getHeaders(),
             ...(options.headers ?? {}),
           },
         });
