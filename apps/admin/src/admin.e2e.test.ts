@@ -153,6 +153,57 @@ describe("admin sprint 3 e2e", () => {
     );
   });
 
+  it("preserves 401 responses from the api login endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: "Credenciais invalidas." }), {
+        status: 401,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const loginResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        email: "user@example.com",
+        password: "senha-invalida",
+      },
+    });
+
+    expect(loginResponse.status).toBe(401);
+    expect(loginResponse.json()).toEqual({
+      message: "Credenciais invalidas.",
+    });
+  });
+
+  it("returns 502 when the auth api is unavailable", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValueOnce(new TypeError("fetch failed"));
+
+    globalThis.fetch = fetchMock;
+
+    const loginResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        email: "user@example.com",
+        password: "super-secret-password",
+      },
+    });
+
+    expect(loginResponse.status).toBe(502);
+    expect(loginResponse.json()).toEqual({
+      message: "Falha ao consultar a API administrativa.",
+    });
+  });
+
   it("serves the admin dashboard and forwards create/list market requests", async () => {
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(

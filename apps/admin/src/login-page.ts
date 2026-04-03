@@ -268,6 +268,22 @@ export const renderLoginPage = (input: {
         submitButton.textContent = isSubmitting ? "Entrando..." : "Entrar";
       };
 
+      const resolveLoginErrorMessage = (input) => {
+        if (input.status === 401) {
+          return "Email ou senha invalidos. Revise as credenciais e tente novamente.";
+        }
+
+        if (input.status === 502) {
+          return "A API de autenticacao nao esta disponivel no momento. Verifique se o api esta rodando em localhost:4000.";
+        }
+
+        if (input.networkError) {
+          return "Nao foi possivel conectar ao admin. Recarregue a pagina e tente novamente.";
+        }
+
+        return input.message || "Nao foi possivel autenticar no admin.";
+      };
+
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         setSubmitting(true);
@@ -292,7 +308,10 @@ export const renderLoginPage = (input: {
           const data = responseText ? JSON.parse(responseText) : null;
 
           if (!response.ok) {
-            throw new Error(data?.message ?? "Nao foi possivel autenticar no admin.");
+            throw new Error(resolveLoginErrorMessage({
+              status: response.status,
+              message: data?.message,
+            }));
           }
 
           window.ProjetoAlfaSession.save(data);
@@ -300,7 +319,17 @@ export const renderLoginPage = (input: {
           setStatus("Login realizado com sucesso. Redirecionando...", "success");
           window.location.href = "/";
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Falha ao autenticar.", "danger");
+          const isNetworkError =
+            error instanceof TypeError ||
+            (error instanceof Error && error.message === "Failed to fetch");
+
+          const message = isNetworkError
+            ? resolveLoginErrorMessage({ networkError: true })
+            : error instanceof Error
+              ? error.message
+              : "Falha ao autenticar.";
+
+          setStatus(message, "danger");
         } finally {
           setSubmitting(false);
         }
