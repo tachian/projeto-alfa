@@ -1,5 +1,7 @@
 import { escapeHtml } from "./html.js";
 
+import { renderSessionClientScript } from "./session.js";
+
 export const renderAdminDashboardPage = (input: {
   appName: string;
 }) => {
@@ -350,11 +352,12 @@ export const renderAdminDashboardPage = (input: {
     </main>
 
     <script>
+      ${renderSessionClientScript()}
+
       const statusNode = document.getElementById("dashboard-status");
       const listNode = document.getElementById("market-list");
       const tokenNode = document.getElementById("auth-token");
       const createForm = document.getElementById("create-market-form");
-      const storageKey = "projeto-alfa.admin.token";
 
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
@@ -363,7 +366,7 @@ export const renderAdminDashboardPage = (input: {
 
       const getToken = () => tokenNode.value.trim();
       const saveToken = () => {
-        localStorage.setItem(storageKey, getToken());
+        window.ProjetoAlfaSession.setAccessToken(getToken());
         setStatus("Token salvo no navegador.", "success");
       };
 
@@ -477,7 +480,7 @@ export const renderAdminDashboardPage = (input: {
         }
       };
 
-      tokenNode.value = localStorage.getItem(storageKey) ?? "";
+      tokenNode.value = window.ProjetoAlfaSession.getAccessToken();
       document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-markets").addEventListener("click", loadMarkets);
 

@@ -18,5 +18,6 @@ describe("renderMarketPage", () => {
     expect(html).toContain("Historico de resolucao");
     expect(html).toContain("Guiar resolucao e liquidacao");
     expect(html).toContain("Executar ultimo run");
+    expect(html).toContain("window.ProjetoAlfaSession");
   });
 });

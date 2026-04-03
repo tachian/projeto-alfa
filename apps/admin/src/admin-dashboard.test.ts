@@ -11,5 +11,6 @@ describe("renderAdminDashboardPage", () => {
     expect(html).toContain("/api/admin/markets");
     expect(html).toContain("Suspender");
     expect(html).toContain("Fechar");
+    expect(html).toContain("window.ProjetoAlfaSession");
   });
 });

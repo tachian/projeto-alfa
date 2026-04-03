@@ -1,4 +1,5 @@
 import { escapeHtml } from "./html.js";
+import { renderSessionClientScript } from "./session.js";
 
 export const renderLoginPage = (input: {
   appName: string;
@@ -251,11 +252,11 @@ export const renderLoginPage = (input: {
     </main>
 
     <script>
+      ${renderSessionClientScript()}
+
       const form = document.getElementById("login-form");
       const statusNode = document.getElementById("login-status");
       const submitButton = document.getElementById("submit-button");
-      const sessionStorageKey = "projeto-alfa.admin.session";
-      const tokenStorageKey = "projeto-alfa.admin.token";
 
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
@@ -294,10 +295,7 @@ export const renderLoginPage = (input: {
             throw new Error(data?.message ?? "Nao foi possivel autenticar no admin.");
           }
 
-          localStorage.setItem(sessionStorageKey, JSON.stringify(data));
-          if (data?.tokens?.accessToken) {
-            localStorage.setItem(tokenStorageKey, data.tokens.accessToken);
-          }
+          window.ProjetoAlfaSession.save(data);
 
           setStatus("Login realizado com sucesso. Redirecionando...", "success");
           window.location.href = "/";

@@ -11,6 +11,6 @@ describe("renderLoginPage", () => {
     expect(html).toContain("type=\"email\"");
     expect(html).toContain("type=\"password\"");
     expect(html).toContain("/api/auth/login");
-    expect(html).toContain("projeto-alfa.admin.session");
+    expect(html).toContain("window.ProjetoAlfaSession");
   });
 });

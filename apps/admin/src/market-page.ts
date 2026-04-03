@@ -1,4 +1,5 @@
 import { escapeHtml } from "./html.js";
+import { renderSessionClientScript } from "./session.js";
 
 export const renderMarketPage = (input: {
   appName: string;
@@ -679,8 +680,9 @@ export const renderMarketPage = (input: {
     </main>
 
     <script>
+      ${renderSessionClientScript()}
+
       const marketUuid = ${JSON.stringify(input.marketUuid)};
-      const tokenStorageKey = "projeto-alfa.admin.token";
       let recentTrades = [];
       let recentResolutions = [];
       let recentSettlementRuns = [];
@@ -728,7 +730,7 @@ export const renderMarketPage = (input: {
       };
 
       const saveToken = async () => {
-        localStorage.setItem(tokenStorageKey, getToken());
+        window.ProjetoAlfaSession.setAccessToken(getToken());
         setAdminStatus("Token salvo no navegador.", "success");
         await Promise.all([loadUserOrders(), loadResolutions(), loadSettlementRuns()]);
       };
@@ -1128,7 +1130,7 @@ export const renderMarketPage = (input: {
         });
       };
 
-      document.getElementById("auth-token").value = localStorage.getItem(tokenStorageKey) ?? "";
+      document.getElementById("auth-token").value = window.ProjetoAlfaSession.getAccessToken();
       document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
       document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
