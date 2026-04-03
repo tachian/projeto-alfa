@@ -25,5 +25,8 @@ describe("renderMarketPage", () => {
     expect(html).toContain("fetchWithAuth");
     expect(html).toContain("requireAdminSession");
     expect(html).toContain("Acesso restrito");
+    expect(html).not.toContain("Bearer token");
+    expect(html).not.toContain('id="auth-token"');
+    expect(html).not.toContain('id="save-token"');
   });
 });

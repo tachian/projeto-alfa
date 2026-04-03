@@ -356,18 +356,11 @@ export const renderAdminDashboardPage = (input: {
       <section id="dashboard-layout" class="layout">
         <article class="panel">
           <div class="eyebrow">Sessao</div>
-          <h2>Token e criacao</h2>
-          <p>O dashboard valida a sessao automaticamente e reutiliza o token salvo para operar as rotas administrativas.</p>
+          <h2>Criacao guiada por login</h2>
+          <p>O dashboard valida a sessao automaticamente e usa a autenticacao ativa para operar as rotas administrativas, sem exigir token manual.</p>
 
-          <div class="field-grid">
-            <label>
-              Bearer token
-              <textarea id="auth-token" placeholder="Cole aqui o access token do admin"></textarea>
-            </label>
-            <div class="toolbar">
-              <button id="save-token" type="button" class="secondary">Salvar token</button>
-              <button id="refresh-markets" type="button" class="ghost">Atualizar lista</button>
-            </div>
+          <div class="toolbar" style="margin-top: 18px;">
+            <button id="refresh-markets" type="button" class="ghost">Atualizar lista</button>
           </div>
 
           <hr style="margin: 24px 0; border: 0; border-top: 1px solid rgba(76, 51, 24, 0.1);" />
@@ -426,7 +419,6 @@ export const renderAdminDashboardPage = (input: {
 
       const statusNode = document.getElementById("dashboard-status");
       const listNode = document.getElementById("market-list");
-      const tokenNode = document.getElementById("auth-token");
       const createForm = document.getElementById("create-market-form");
 
       const setStatus = (message, tone = "default") => {
@@ -452,17 +444,6 @@ export const renderAdminDashboardPage = (input: {
       const redirectToLogin = (reason = "") => {
         const targetUrl = window.ProjetoAlfaSession.buildLoginRedirectUrl(reason);
         window.location.href = targetUrl;
-      };
-
-      const getToken = () => tokenNode.value.trim();
-      const saveToken = () => {
-        window.ProjetoAlfaSession.setAccessToken(getToken());
-        setStatus("Token salvo no navegador.", "success");
-      };
-
-      const authHeaders = () => {
-        const token = window.ProjetoAlfaSession.getAccessToken();
-        return token ? { Authorization: "Bearer " + token } : {};
       };
 
       const formatDate = (value) => {
@@ -544,7 +525,6 @@ export const renderAdminDashboardPage = (input: {
           } catch (error) {
             if (error?.code === "forbidden") {
               window.ProjetoAlfaSession.updateUser(payload.user);
-              tokenNode.value = accessToken;
               showAccessDenied(payload.user);
               return false;
             }
@@ -553,7 +533,6 @@ export const renderAdminDashboardPage = (input: {
           }
 
           window.ProjetoAlfaSession.updateUser(payload.user);
-          tokenNode.value = accessToken;
           setIdentity({
             email: payload.user.email,
             meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
@@ -611,8 +590,6 @@ export const renderAdminDashboardPage = (input: {
         }
       };
 
-      tokenNode.value = window.ProjetoAlfaSession.getAccessToken();
-      document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-markets").addEventListener("click", loadMarkets);
 
       createForm.addEventListener("submit", async (event) => {

@@ -597,15 +597,8 @@ export const renderMarketPage = (input: {
             <div class="panel-body">
               <div class="eyebrow">Operacao</div>
               <h2>Editar mercado</h2>
-              <p class="section-copy">A ficha publica continua visivel, mas aqui voce tambem pode ajustar o cadastro administrativo e trocar o estado do mercado.</p>
-              <div class="form-grid">
-                <label class="field-label">
-                  Bearer token
-                  <textarea id="auth-token" placeholder="Cole aqui o access token do admin"></textarea>
-                </label>
-              </div>
+              <p class="section-copy">A ficha publica continua visivel, mas aqui voce tambem pode ajustar o cadastro administrativo e trocar o estado do mercado usando a sessao autenticada do painel.</p>
               <div class="admin-toolbar">
-                <button type="button" id="save-token" class="secondary">Salvar token</button>
                 <button type="button" id="suspend-market">Suspender</button>
                 <button type="button" id="close-market" class="warning">Fechar</button>
               </div>
@@ -746,21 +739,7 @@ export const renderMarketPage = (input: {
         document.getElementById("market-layout").hidden = true;
         document.getElementById("market-state").hidden = true;
         document.getElementById("market-access-denied").hidden = false;
-        document.getElementById("auth-token").value = window.ProjetoAlfaSession.getAccessToken();
         setAdminStatus("Acesso restrito a administradores.", "danger");
-      };
-
-      const getToken = () => document.getElementById("auth-token").value.trim();
-
-      const getHeaders = () => {
-        const token = window.ProjetoAlfaSession.getAccessToken();
-        return token ? { Authorization: "Bearer " + token } : {};
-      };
-
-      const saveToken = async () => {
-        window.ProjetoAlfaSession.setAccessToken(getToken());
-        setAdminStatus("Token salvo no navegador.", "success");
-        await Promise.all([loadUserOrders(), loadResolutions(), loadSettlementRuns()]);
       };
 
       const fetchJson = async (url, options = {}) => {
@@ -808,7 +787,6 @@ export const renderMarketPage = (input: {
           }
 
           window.ProjetoAlfaSession.updateUser(payload.user);
-          document.getElementById("auth-token").value = accessToken;
           setAdminStatus("Sessao validada. Carregando operacao do mercado...", "success");
           return true;
         } catch (error) {
@@ -1194,7 +1172,6 @@ export const renderMarketPage = (input: {
         });
       };
 
-      document.getElementById("save-token").addEventListener("click", saveToken);
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
       document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
         await Promise.all([loadResolutions(), loadSettlementRuns()]);
