@@ -214,7 +214,7 @@ export const renderLoginPage = (input: {
         <ul class="hero-list">
           <li>
             <strong>Autenticacao real</strong>
-            O login usa diretamente os endpoints ja existentes da API.
+            O admin reaproveita diretamente os endpoints POST /auth/login, GET /auth/me e POST /auth/refresh da API.
           </li>
           <li>
             <strong>Sessao no navegador</strong>

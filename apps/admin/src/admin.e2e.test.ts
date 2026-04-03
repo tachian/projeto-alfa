@@ -251,6 +251,67 @@ describe("admin sprint 3 e2e", () => {
     );
   });
 
+  it("forwards auth refresh requests without creating a parallel auth api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            uuid: "admin-user-uuid",
+            email: "user@example.com",
+            role: "admin",
+            status: "active",
+          },
+          tokens: {
+            accessToken: "rotated-access-token",
+            refreshToken: "rotated-refresh-token",
+            accessTokenExpiresIn: "15m",
+            refreshTokenExpiresIn: "7d",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const refreshResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/refresh",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        refreshToken: "refresh-token",
+      },
+    });
+
+    expect(refreshResponse.status).toBe(200);
+    expect(refreshResponse.json()).toMatchObject({
+      user: {
+        email: "user@example.com",
+        role: "admin",
+      },
+      tokens: {
+        accessToken: "rotated-access-token",
+        refreshToken: "rotated-refresh-token",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/auth/refresh", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refreshToken: "refresh-token",
+        }),
+      }),
+    );
+  });
+
   it("serves the admin dashboard and forwards create/list market requests", async () => {
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(

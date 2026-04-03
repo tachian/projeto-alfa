@@ -162,6 +162,13 @@ Arquivos `.env` locais criados:
 - `admin`: [apps/admin/.env](/home/tachian/work/projeto-alfa/apps/admin/.env)
 - `worker`: [apps/worker/.env](/home/tachian/work/projeto-alfa/apps/worker/.env)
 
+Autenticacao atual do `admin`:
+
+- `POST /auth/login` para iniciar sessao
+- `GET /auth/me` para validar a sessao nas paginas protegidas
+- `POST /auth/refresh` reservado para renovacao de sessao
+- o `admin` nao cria uma API paralela de autenticacao; ele apenas faz proxy desses endpoints existentes do `api`
+
 Configuracoes relevantes do `api` para KYC/AML:
 
 - `KYC_PROVIDER=mock`

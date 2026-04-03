@@ -127,6 +127,18 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/auth/refresh" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/auth/refresh",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
   if (pathname === "/api/auth/me" && request.method === "GET") {
     await proxyApiRequest({
       request,

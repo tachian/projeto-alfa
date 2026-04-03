@@ -12,6 +12,7 @@ describe("renderLoginPage", () => {
     expect(html).toContain("type=\"password\"");
     expect(html).toContain("/api/auth/login");
     expect(html).toContain("window.ProjetoAlfaSession");
+    expect(html).toContain("/auth/refresh");
     expect(html).toContain("Email ou senha invalidos");
     expect(html).toContain("A API de autenticacao nao esta disponivel");
   });
