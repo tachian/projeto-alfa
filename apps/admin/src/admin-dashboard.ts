@@ -195,6 +195,23 @@ export const renderAdminDashboardPage = (input: {
         color: var(--danger);
       }
 
+      .access-denied {
+        margin-top: 22px;
+        padding: 22px;
+        border-radius: 22px;
+        border: 1px solid rgba(155, 44, 44, 0.14);
+        background: rgba(155, 44, 44, 0.08);
+        color: var(--danger);
+      }
+
+      .access-denied h2 {
+        font-size: 1.8rem;
+      }
+
+      .access-denied p {
+        color: inherit;
+      }
+
       .identity-card {
         min-width: 240px;
         padding: 14px 16px;
@@ -330,7 +347,13 @@ export const renderAdminDashboardPage = (input: {
         </div>
       </section>
 
-      <section class="layout">
+      <section id="access-denied" class="access-denied" hidden>
+        <div class="eyebrow">Acesso</div>
+        <h2>Acesso restrito</h2>
+        <p>Esta conta esta autenticada, mas nao possui a role administrativa necessaria para operar o painel.</p>
+      </section>
+
+      <section id="dashboard-layout" class="layout">
         <article class="panel">
           <div class="eyebrow">Sessao</div>
           <h2>Token e criacao</h2>
@@ -414,6 +437,16 @@ export const renderAdminDashboardPage = (input: {
       const setIdentity = (input) => {
         document.getElementById("identity-email").textContent = input.email;
         document.getElementById("identity-meta").textContent = input.meta;
+      };
+
+      const showAccessDenied = (user) => {
+        document.getElementById("dashboard-layout").hidden = true;
+        document.getElementById("access-denied").hidden = false;
+        setIdentity({
+          email: user.email,
+          meta: "Role: " + user.role + " | Status: " + user.status,
+        });
+        setStatus("Acesso restrito a administradores.", "danger");
       };
 
       const redirectToLogin = () => {
@@ -505,6 +538,19 @@ export const renderAdminDashboardPage = (input: {
           const payload = await fetchJson("/api/auth/me", {
             method: "GET",
           });
+
+          try {
+            window.ProjetoAlfaSession.requireAdminSession(payload.user);
+          } catch (error) {
+            if (error?.code === "forbidden") {
+              window.ProjetoAlfaSession.updateUser(payload.user);
+              tokenNode.value = accessToken;
+              showAccessDenied(payload.user);
+              return false;
+            }
+
+            throw error;
+          }
 
           window.ProjetoAlfaSession.updateUser(payload.user);
           tokenNode.value = accessToken;

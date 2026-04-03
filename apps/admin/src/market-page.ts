@@ -379,6 +379,15 @@ export const renderMarketPage = (input: {
         color: var(--danger);
       }
 
+      .access-denied {
+        margin-top: 22px;
+        padding: 18px 20px;
+        border-radius: 18px;
+        border: 1px solid rgba(154, 44, 26, 0.14);
+        background: rgba(255, 241, 236, 0.8);
+        color: var(--danger);
+      }
+
       @media (max-width: 1060px) {
         .layout,
         .trading-grid,
@@ -677,6 +686,12 @@ export const renderMarketPage = (input: {
           </article>
         </div>
       </section>
+
+      <section id="market-access-denied" class="access-denied" hidden>
+        <div class="eyebrow">Acesso</div>
+        <h2>Acesso restrito</h2>
+        <p>Esta conta esta autenticada, mas nao possui a role administrativa necessaria para operar esta ficha de mercado.</p>
+      </section>
     </main>
 
     <script>
@@ -726,6 +741,14 @@ export const renderMarketPage = (input: {
         window.location.href = "/login";
       };
 
+      const showAccessDenied = () => {
+        document.getElementById("market-layout").hidden = true;
+        document.getElementById("market-state").hidden = true;
+        document.getElementById("market-access-denied").hidden = false;
+        document.getElementById("auth-token").value = window.ProjetoAlfaSession.getAccessToken();
+        setAdminStatus("Acesso restrito a administradores.", "danger");
+      };
+
       const getToken = () => document.getElementById("auth-token").value.trim();
 
       const getHeaders = () => {
@@ -771,6 +794,18 @@ export const renderMarketPage = (input: {
           const payload = await fetchJson("/api/auth/me", {
             method: "GET",
           });
+
+          try {
+            window.ProjetoAlfaSession.requireAdminSession(payload.user);
+          } catch (error) {
+            if (error?.code === "forbidden") {
+              window.ProjetoAlfaSession.updateUser(payload.user);
+              showAccessDenied();
+              return false;
+            }
+
+            throw error;
+          }
 
           window.ProjetoAlfaSession.updateUser(payload.user);
           document.getElementById("auth-token").value = accessToken;

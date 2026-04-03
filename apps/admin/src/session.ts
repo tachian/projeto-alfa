@@ -25,6 +25,12 @@ export const renderSessionClientScript = () => {
     const projetoAlfaSessionStorageKey = ${JSON.stringify(ADMIN_SESSION_STORAGE_KEY)};
     const projetoAlfaTokenStorageKey = ${JSON.stringify(ADMIN_TOKEN_STORAGE_KEY)};
 
+    const createProjetoAlfaSessionError = (code, message) => {
+      const error = new Error(message);
+      error.code = code;
+      return error;
+    };
+
     const readStoredJson = (key) => {
       try {
         const value = localStorage.getItem(key);
@@ -87,6 +93,17 @@ export const renderSessionClientScript = () => {
         } else {
           localStorage.removeItem(projetoAlfaTokenStorageKey);
         }
+      },
+      requireAdminSession(user) {
+        if (!user) {
+          throw createProjetoAlfaSessionError("unauthenticated", "Sessao ausente.");
+        }
+
+        if (user.role !== "admin") {
+          throw createProjetoAlfaSessionError("forbidden", "Acesso restrito a administradores.");
+        }
+
+        return user;
       },
     };
 

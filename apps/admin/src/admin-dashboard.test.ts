@@ -14,5 +14,7 @@ describe("renderAdminDashboardPage", () => {
     expect(html).toContain("Fechar");
     expect(html).toContain("window.ProjetoAlfaSession");
     expect(html).toContain("Nao autenticado");
+    expect(html).toContain("requireAdminSession");
+    expect(html).toContain("Acesso restrito");
   });
 });
