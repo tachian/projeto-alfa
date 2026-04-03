@@ -82,6 +82,77 @@ describe("admin sprint 3 e2e", () => {
     globalThis.fetch = originalFetch;
   });
 
+  it("serves the login page and forwards login requests to the api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            uuid: "admin-user-uuid",
+            email: "user@example.com",
+            role: "admin",
+            status: "active",
+          },
+          tokens: {
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+            accessTokenExpiresIn: "15m",
+            refreshTokenExpiresIn: "7d",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const loginPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/login",
+    });
+
+    expect(loginPageResponse.status).toBe(200);
+    expect(loginPageResponse.text()).toContain("Entrar no admin");
+    expect(loginPageResponse.text()).toContain("/api/auth/login");
+
+    const loginResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        email: "user@example.com",
+        password: "super-secret-password",
+      },
+    });
+
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.json()).toMatchObject({
+      user: {
+        email: "user@example.com",
+        role: "admin",
+      },
+      tokens: {
+        accessToken: "access-token",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/auth/login", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "user@example.com",
+          password: "super-secret-password",
+        }),
+      }),
+    );
+  });
+
   it("serves the admin dashboard and forwards create/list market requests", async () => {
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(

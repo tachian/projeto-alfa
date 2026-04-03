@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
+import { renderLoginPage } from "./login-page.js";
 import { renderMarketPage } from "./market-page.js";
 
 const readJsonBody = async (request: IncomingMessage) => {
@@ -99,6 +100,30 @@ export const handleAdminRequest = async (
         appName: adminConfig.APP_NAME,
       }),
     );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/login") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderLoginPage({
+        appName: adminConfig.APP_NAME,
+      }),
+    );
+    return;
+  }
+
+  if (pathname === "/api/auth/login" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/auth/login",
+      method: "POST",
+      body,
+    });
     return;
   }
 
