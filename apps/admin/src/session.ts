@@ -171,6 +171,10 @@ export const renderSessionClientScript = () => {
 
         return url.toString();
       },
+      logout(reason = "") {
+        this.clear();
+        window.location.href = this.buildLoginRedirectUrl(reason);
+      },
     };
 
     window.ProjetoAlfaSession = projetoAlfaSession;

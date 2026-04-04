@@ -79,6 +79,13 @@ export const renderMarketPage = (input: {
         pointer-events: none;
       }
 
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: flex-start;
+      }
+
       h1, h2, h3 {
         margin: 0;
         font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
@@ -115,6 +122,39 @@ export const renderMarketPage = (input: {
         margin-top: 20px;
         font-size: 0.9rem;
         color: var(--muted);
+      }
+
+      .identity-card {
+        min-width: 240px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .identity-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      .identity-value {
+        margin-top: 6px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .identity-meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .identity-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
       }
 
       .layout {
@@ -389,6 +429,7 @@ export const renderMarketPage = (input: {
       }
 
       @media (max-width: 1060px) {
+        .hero-top,
         .layout,
         .trading-grid,
         .form-grid.two,
@@ -401,12 +442,24 @@ export const renderMarketPage = (input: {
   <body>
     <main class="shell">
       <section class="hero">
-        <div class="eyebrow">${safeAppName}</div>
-        <h1 id="market-title">Carregando mercado</h1>
-        <p class="subtitle" id="market-subtitle">
-          Estamos preparando a leitura completa do contrato, do book e das ultimas execucoes.
-        </p>
-        <div class="market-id">UUID do mercado: <strong>${safeMarketUuid}</strong></div>
+        <div class="hero-top">
+          <div>
+            <div class="eyebrow">${safeAppName}</div>
+            <h1 id="market-title">Carregando mercado</h1>
+            <p class="subtitle" id="market-subtitle">
+              Estamos preparando a leitura completa do contrato, do book e das ultimas execucoes.
+            </p>
+            <div class="market-id">UUID do mercado: <strong>${safeMarketUuid}</strong></div>
+          </div>
+          <aside class="identity-card">
+            <div class="identity-label">Sessao</div>
+            <div id="identity-email" class="identity-value">Nao autenticado</div>
+            <div id="identity-meta" class="identity-meta">A ficha valida a sessao ao carregar.</div>
+            <div class="identity-actions">
+              <button id="logout-button" type="button" class="secondary">Sair</button>
+            </div>
+          </aside>
+        </div>
       </section>
 
       <div id="market-state" class="loading">Buscando mercado, book e execucoes recentes...</div>
@@ -735,10 +788,23 @@ export const renderMarketPage = (input: {
         window.location.href = targetUrl;
       };
 
-      const showAccessDenied = () => {
+      const setIdentity = (input) => {
+        document.getElementById("identity-email").textContent = input.email;
+        document.getElementById("identity-meta").textContent = input.meta;
+      };
+
+      const logout = () => {
+        window.ProjetoAlfaSession.logout();
+      };
+
+      const showAccessDenied = (user) => {
         document.getElementById("market-layout").hidden = true;
         document.getElementById("market-state").hidden = true;
         document.getElementById("market-access-denied").hidden = false;
+        setIdentity({
+          email: user.email,
+          meta: "Role: " + user.role + " | Status: " + user.status,
+        });
         setAdminStatus("Acesso restrito a administradores.", "danger");
       };
 
@@ -779,7 +845,7 @@ export const renderMarketPage = (input: {
           } catch (error) {
             if (error?.code === "forbidden") {
               window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied();
+              showAccessDenied(payload.user);
               return false;
             }
 
@@ -787,6 +853,10 @@ export const renderMarketPage = (input: {
           }
 
           window.ProjetoAlfaSession.updateUser(payload.user);
+          setIdentity({
+            email: payload.user.email,
+            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+          });
           setAdminStatus("Sessao validada. Carregando operacao do mercado...", "success");
           return true;
         } catch (error) {
@@ -1173,6 +1243,7 @@ export const renderMarketPage = (input: {
       };
 
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
+      document.getElementById("logout-button").addEventListener("click", logout);
       document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
         await Promise.all([loadResolutions(), loadSettlementRuns()]);
       });

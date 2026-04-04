@@ -18,6 +18,9 @@ describe("renderAdminDashboardPage", () => {
     expect(html).toContain("Nao autenticado");
     expect(html).toContain("requireAdminSession");
     expect(html).toContain("Acesso restrito");
+    expect(html).toContain("Role:");
+    expect(html).toContain('id="logout-button"');
+    expect(html).toContain("logout()");
     expect(html).not.toContain("Bearer token");
     expect(html).not.toContain('id="auth-token"');
     expect(html).not.toContain('id="save-token"');

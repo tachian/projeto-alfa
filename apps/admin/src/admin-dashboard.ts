@@ -220,6 +220,12 @@ export const renderAdminDashboardPage = (input: {
         background: rgba(255, 255, 255, 0.62);
       }
 
+      .identity-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
+      }
+
       .identity-label {
         font-size: 0.74rem;
         text-transform: uppercase;
@@ -343,6 +349,9 @@ export const renderAdminDashboardPage = (input: {
             <div class="identity-label">Sessao</div>
             <div id="identity-email" class="identity-value">Nao autenticado</div>
             <div id="identity-meta" class="identity-meta">O dashboard valida a sessao ao carregar.</div>
+            <div class="identity-actions">
+              <button id="logout-button" type="button" class="secondary">Sair</button>
+            </div>
           </aside>
         </div>
       </section>
@@ -444,6 +453,10 @@ export const renderAdminDashboardPage = (input: {
       const redirectToLogin = (reason = "") => {
         const targetUrl = window.ProjetoAlfaSession.buildLoginRedirectUrl(reason);
         window.location.href = targetUrl;
+      };
+
+      const logout = () => {
+        window.ProjetoAlfaSession.logout();
       };
 
       const formatDate = (value) => {
@@ -591,6 +604,7 @@ export const renderAdminDashboardPage = (input: {
       };
 
       document.getElementById("refresh-markets").addEventListener("click", loadMarkets);
+      document.getElementById("logout-button").addEventListener("click", logout);
 
       createForm.addEventListener("submit", async (event) => {
         event.preventDefault();
