@@ -278,6 +278,10 @@ export const renderLoginPage = (input: {
           return "Sessao encerrada com sucesso. Faca login novamente para continuar.";
         }
 
+        if (input.reason === "switch-account") {
+          return "Use outra conta para acessar o painel administrativo.";
+        }
+
         if (input.status === 401) {
           return "Email ou senha invalidos. Revise as credenciais e tente novamente.";
         }
@@ -294,10 +298,10 @@ export const renderLoginPage = (input: {
       };
 
       const loginReason = currentUrl.searchParams.get("reason");
-      if (loginReason === "expired" || loginReason === "logged-out") {
+      if (loginReason === "expired" || loginReason === "logged-out" || loginReason === "switch-account") {
         setStatus(
           resolveLoginErrorMessage({ reason: loginReason }),
-          loginReason === "logged-out" ? "success" : "danger",
+          loginReason === "logged-out" || loginReason === "switch-account" ? "success" : "danger",
         );
       }
 

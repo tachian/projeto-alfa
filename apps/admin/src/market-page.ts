@@ -428,6 +428,13 @@ export const renderMarketPage = (input: {
         color: var(--danger);
       }
 
+      .access-denied-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
       @media (max-width: 1060px) {
         .hero-top,
         .layout,
@@ -737,6 +744,10 @@ export const renderMarketPage = (input: {
         <div class="eyebrow">Acesso</div>
         <h2>Acesso restrito</h2>
         <p>Esta conta esta autenticada, mas nao possui a role administrativa necessaria para operar esta ficha de mercado.</p>
+        <div class="access-denied-actions">
+          <button id="denied-switch-account" type="button" class="secondary">Trocar conta</button>
+          <button id="denied-logout" type="button">Sair do painel</button>
+        </div>
       </section>
     </main>
 
@@ -795,6 +806,10 @@ export const renderMarketPage = (input: {
 
       const logout = () => {
         window.ProjetoAlfaSession.logout("logged-out");
+      };
+
+      const switchAccount = () => {
+        window.ProjetoAlfaSession.logout("switch-account");
       };
 
       const showAccessDenied = (user) => {
@@ -1244,6 +1259,8 @@ export const renderMarketPage = (input: {
 
       document.getElementById("refresh-orders").addEventListener("click", loadUserOrders);
       document.getElementById("logout-button").addEventListener("click", logout);
+      document.getElementById("denied-logout").addEventListener("click", logout);
+      document.getElementById("denied-switch-account").addEventListener("click", switchAccount);
       document.getElementById("refresh-resolution-data").addEventListener("click", async () => {
         await Promise.all([loadResolutions(), loadSettlementRuns()]);
       });

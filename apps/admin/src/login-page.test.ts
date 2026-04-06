@@ -16,6 +16,7 @@ describe("renderLoginPage", () => {
     expect(html).toContain("reason");
     expect(html).toContain("Sua sessao expirou");
     expect(html).toContain("Sessao encerrada com sucesso");
+    expect(html).toContain("Use outra conta para acessar o painel administrativo");
     expect(html).toContain("Email ou senha invalidos");
     expect(html).toContain("A API de autenticacao nao esta disponivel");
   });

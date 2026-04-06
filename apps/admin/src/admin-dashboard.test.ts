@@ -18,6 +18,9 @@ describe("renderAdminDashboardPage", () => {
     expect(html).toContain("Nao autenticado");
     expect(html).toContain("requireAdminSession");
     expect(html).toContain("Acesso restrito");
+    expect(html).toContain("Trocar conta");
+    expect(html).toContain("Sair do painel");
+    expect(html).toContain('logout("switch-account")');
     expect(html).toContain("Role:");
     expect(html).toContain('id="logout-button"');
     expect(html).toContain('logout("logged-out")');

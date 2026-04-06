@@ -29,6 +29,9 @@ describe("renderMarketPage", () => {
     expect(html).toContain("fetchWithAuth");
     expect(html).toContain("requireAdminSession");
     expect(html).toContain("Acesso restrito");
+    expect(html).toContain("Trocar conta");
+    expect(html).toContain("Sair do painel");
+    expect(html).toContain('logout("switch-account")');
     expect(html).not.toContain("Bearer token");
     expect(html).not.toContain('id="auth-token"');
     expect(html).not.toContain('id="save-token"');

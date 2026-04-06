@@ -212,6 +212,13 @@ export const renderAdminDashboardPage = (input: {
         color: inherit;
       }
 
+      .access-denied-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+
       .identity-card {
         min-width: 240px;
         padding: 14px 16px;
@@ -360,6 +367,10 @@ export const renderAdminDashboardPage = (input: {
         <div class="eyebrow">Acesso</div>
         <h2>Acesso restrito</h2>
         <p>Esta conta esta autenticada, mas nao possui a role administrativa necessaria para operar o painel.</p>
+        <div class="access-denied-actions">
+          <button id="denied-switch-account" type="button" class="secondary">Trocar conta</button>
+          <button id="denied-logout" type="button">Sair do painel</button>
+        </div>
       </section>
 
       <section id="dashboard-layout" class="layout">
@@ -457,6 +468,10 @@ export const renderAdminDashboardPage = (input: {
 
       const logout = () => {
         window.ProjetoAlfaSession.logout("logged-out");
+      };
+
+      const switchAccount = () => {
+        window.ProjetoAlfaSession.logout("switch-account");
       };
 
       const formatDate = (value) => {
@@ -605,6 +620,8 @@ export const renderAdminDashboardPage = (input: {
 
       document.getElementById("refresh-markets").addEventListener("click", loadMarkets);
       document.getElementById("logout-button").addEventListener("click", logout);
+      document.getElementById("denied-logout").addEventListener("click", logout);
+      document.getElementById("denied-switch-account").addEventListener("click", switchAccount);
 
       createForm.addEventListener("submit", async (event) => {
         event.preventDefault();
