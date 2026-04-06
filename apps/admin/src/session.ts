@@ -17,8 +17,35 @@ export type AdminSession = {
   tokens: AdminSessionTokens;
 };
 
+export type AdminRouteAccessOutcome =
+  | { kind: "redirect" }
+  | { kind: "denied" }
+  | { kind: "granted"; user: AdminSessionUser };
+
 export const ADMIN_SESSION_STORAGE_KEY = "projeto-alfa.admin.session";
 export const ADMIN_TOKEN_STORAGE_KEY = "projeto-alfa.admin.token";
+
+export const resolveAdminRouteAccess = (input: {
+  accessToken?: string | null;
+  user?: AdminSessionUser | null;
+}): AdminRouteAccessOutcome => {
+  if (!input.accessToken) {
+    return { kind: "redirect" };
+  }
+
+  if (!input.user) {
+    return { kind: "redirect" };
+  }
+
+  if (input.user.role !== "admin") {
+    return { kind: "denied" };
+  }
+
+  return {
+    kind: "granted",
+    user: input.user,
+  };
+};
 
 export const renderSessionClientScript = () => {
   return `
