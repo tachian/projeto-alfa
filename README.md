@@ -33,6 +33,15 @@ Se quiser subir toda a stack de apps do monorepo:
 make dev
 ```
 
+Para trabalhar com o painel administrativo:
+
+```bash
+make api-dev
+make admin-dev
+```
+
+Depois acesse `http://localhost:3000/login`.
+
 Pre-requisitos:
 
 - `pnpm`
@@ -166,8 +175,11 @@ Autenticacao atual do `admin`:
 
 - `POST /auth/login` para iniciar sessao
 - `GET /auth/me` para validar a sessao nas paginas protegidas
-- `POST /auth/refresh` reservado para renovacao de sessao
+- `POST /auth/refresh` para renovar a sessao quando o access token expirar
 - o `admin` nao cria uma API paralela de autenticacao; ele apenas faz proxy desses endpoints existentes do `api`
+- o painel usa sessao no navegador e nao exige colar JWT manualmente
+- rotas protegidas do `admin` redirecionam para `/login` quando nao houver sessao valida
+- usuarios autenticados sem `role=admin` veem um estado de `Acesso restrito`, com acoes para sair ou trocar de conta
 
 Configuracoes relevantes do `api` para KYC/AML:
 
@@ -196,6 +208,12 @@ Subir so o `api` depois do setup:
 make api-dev
 ```
 
+Subir o `admin`:
+
+```bash
+make admin-dev
+```
+
 Verificar o healthcheck:
 
 ```bash
@@ -203,6 +221,26 @@ curl http://127.0.0.1:4000/
 curl http://127.0.0.1:4000/health/ready
 curl http://127.0.0.1:4000/metrics
 ```
+
+## Fluxo do Admin
+
+Onboarding recomendado:
+
+1. suba `api` e `admin`
+2. abra `http://localhost:3000/login`
+3. entre com email e senha de um usuario existente no `api`
+4. o `admin` usa `POST /auth/login` para criar a sessao
+5. o dashboard e a pagina de mercado usam `GET /auth/me` para validar identidade e `role`
+6. quando o access token expira, o painel tenta renovar com `POST /auth/refresh`
+7. se o refresh falhar, a sessao local e limpa e o usuario volta para `/login`
+
+Comportamentos importantes:
+
+- o painel nao usa mais fluxo manual de colar token
+- o cabecalho mostra email, role e status da conta autenticada
+- o botao `Sair` limpa a sessao local e redireciona para `/login`
+- a opcao `Trocar conta` encerra a sessao atual e leva o usuario de volta ao login para autenticar com outro perfil
+- se a conta nao tiver `role=admin`, o painel mostra `Acesso restrito` em vez de erro generico `403`
 
 Canal realtime do `api`:
 
