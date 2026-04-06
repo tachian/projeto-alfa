@@ -859,4 +859,251 @@ describe("admin sprint 3 e2e", () => {
       }),
     );
   });
+
+  it("validates the main admin journey end-to-end across login dashboard market operations and logout destination", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: {
+              uuid: "admin-user-uuid",
+              email: "user@example.com",
+              role: "admin",
+              status: "active",
+            },
+            tokens: {
+              accessToken: "access-token",
+              refreshToken: "refresh-token",
+              accessTokenExpiresIn: "15m",
+              refreshTokenExpiresIn: "7d",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: {
+              uuid: "admin-user-uuid",
+              email: "user@example.com",
+              role: "admin",
+              status: "active",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            market: {
+              uuid: "new-market-uuid",
+              slug: "fed-cuts-rates",
+              title: "Fed cuts rates in June",
+              category: "macro",
+              status: "draft",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            market: {
+              uuid: "new-market-uuid",
+              title: "Fed cuts rates in June",
+              slug: "fed-cuts-rates",
+              category: "macro",
+              status: "draft",
+              outcomeType: "binary",
+              contractValue: "1.00",
+              tickSize: 1,
+              openAt: "2026-06-01T10:00:00.000Z",
+              closeAt: "2026-06-18T21:00:00.000Z",
+              rules: {
+                officialSourceLabel: "Federal Reserve statement",
+                officialSourceUrl: "https://www.federalreserve.gov/newsevents/pressreleases.htm",
+                resolutionRules: "Resolves YES if the Fed announces a rate cut.",
+              },
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            market: {
+              uuid: "new-market-uuid",
+              status: "open",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const loginPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/login",
+    });
+    expect(loginPageResponse.status).toBe(200);
+    expect(loginPageResponse.text()).toContain("Entrar no admin");
+
+    const loginResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/login",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        email: "user@example.com",
+        password: "super-secret-password",
+      },
+    });
+    expect(loginResponse.status).toBe(200);
+    expect(loginResponse.json()).toMatchObject({
+      user: {
+        role: "admin",
+      },
+      tokens: {
+        accessToken: "access-token",
+      },
+    });
+
+    const authMeResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/auth/me",
+      headers: {
+        authorization: "Bearer access-token",
+      },
+    });
+    expect(authMeResponse.status).toBe(200);
+    expect(authMeResponse.json()).toMatchObject({
+      user: {
+        email: "user@example.com",
+        role: "admin",
+      },
+    });
+
+    const dashboardResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/",
+    });
+    expect(dashboardResponse.status).toBe(200);
+    expect(dashboardResponse.text()).toContain("Criar mercado");
+    expect(dashboardResponse.text()).toContain('logout("logged-out")');
+
+    const createMarketResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/admin/markets",
+      headers: {
+        authorization: "Bearer access-token",
+        "content-type": "application/json",
+      },
+      body: {
+        slug: "fed-cuts-rates",
+        title: "Fed cuts rates in June",
+      },
+    });
+    expect(createMarketResponse.status).toBe(201);
+    expect(createMarketResponse.json()).toMatchObject({
+      market: {
+        uuid: "new-market-uuid",
+      },
+    });
+
+    const marketPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/markets/new-market-uuid",
+    });
+    expect(marketPageResponse.status).toBe(200);
+    expect(marketPageResponse.text()).toContain("Editar mercado");
+    expect(marketPageResponse.text()).toContain('logout("logged-out")');
+
+    const marketDetailResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/markets/new-market-uuid",
+    });
+    expect(marketDetailResponse.status).toBe(200);
+    expect(marketDetailResponse.json()).toMatchObject({
+      market: {
+        uuid: "new-market-uuid",
+        status: "draft",
+      },
+    });
+
+    const openMarketResponse = await invokeAdminRoute({
+      method: "PATCH",
+      url: "/api/admin/markets/new-market-uuid",
+      headers: {
+        authorization: "Bearer access-token",
+        "content-type": "application/json",
+      },
+      body: {
+        status: "open",
+      },
+    });
+    expect(openMarketResponse.status).toBe(200);
+    expect(openMarketResponse.json()).toMatchObject({
+      market: {
+        uuid: "new-market-uuid",
+        status: "open",
+      },
+    });
+
+    const logoutDestinationResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/login",
+    });
+    expect(logoutDestinationResponse.status).toBe(200);
+    expect(logoutDestinationResponse.text()).toContain("Sessao encerrada com sucesso");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/auth/login", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/auth/me", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer access-token",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/admin/markets", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      new URL("/markets/new-market-uuid", "http://localhost:4000"),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      new URL("/admin/markets/new-market-uuid", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+  });
 });
