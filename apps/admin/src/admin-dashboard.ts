@@ -456,7 +456,7 @@ export const renderAdminDashboardPage = (input: {
       };
 
       const logout = () => {
-        window.ProjetoAlfaSession.logout();
+        window.ProjetoAlfaSession.logout("logged-out");
       };
 
       const formatDate = (value) => {

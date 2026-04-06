@@ -24,7 +24,7 @@ describe("renderMarketPage", () => {
     expect(html).toContain("Nao autenticado");
     expect(html).toContain("Role:");
     expect(html).toContain('id="logout-button"');
-    expect(html).toContain("logout()");
+    expect(html).toContain('logout("logged-out")');
     expect(html).toContain("getAccessToken()");
     expect(html).toContain("fetchWithAuth");
     expect(html).toContain("requireAdminSession");

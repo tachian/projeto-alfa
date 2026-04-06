@@ -274,6 +274,10 @@ export const renderLoginPage = (input: {
           return "Sua sessao expirou. Faca login novamente para continuar.";
         }
 
+        if (input.reason === "logged-out") {
+          return "Sessao encerrada com sucesso. Faca login novamente para continuar.";
+        }
+
         if (input.status === 401) {
           return "Email ou senha invalidos. Revise as credenciais e tente novamente.";
         }
@@ -289,9 +293,12 @@ export const renderLoginPage = (input: {
         return input.message || "Nao foi possivel autenticar no admin.";
       };
 
-      const expiredReason = currentUrl.searchParams.get("reason");
-      if (expiredReason === "expired") {
-        setStatus(resolveLoginErrorMessage({ reason: "expired" }), "danger");
+      const loginReason = currentUrl.searchParams.get("reason");
+      if (loginReason === "expired" || loginReason === "logged-out") {
+        setStatus(
+          resolveLoginErrorMessage({ reason: loginReason }),
+          loginReason === "logged-out" ? "success" : "danger",
+        );
       }
 
       form.addEventListener("submit", async (event) => {

@@ -794,7 +794,7 @@ export const renderMarketPage = (input: {
       };
 
       const logout = () => {
-        window.ProjetoAlfaSession.logout();
+        window.ProjetoAlfaSession.logout("logged-out");
       };
 
       const showAccessDenied = (user) => {
