@@ -218,4 +218,31 @@ describe("admin auth flow e2e", () => {
       }),
     );
   });
+
+  it("preserves invalid refresh responses from POST /auth/refresh", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: "Refresh token invalido." }), {
+        status: 401,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const refreshResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/auth/refresh",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: {
+        refreshToken: "invalid-refresh-token",
+      },
+    });
+
+    expect(refreshResponse.status).toBe(401);
+    expect(refreshResponse.json()).toEqual({
+      message: "Refresh token invalido.",
+    });
+  });
 });
