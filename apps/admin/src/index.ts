@@ -5,6 +5,7 @@ import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderLoginPage } from "./login-page.js";
 import { renderMarketPage } from "./market-page.js";
+import { renderWorkspacePage } from "./workspace-page.js";
 
 const readJsonBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -96,8 +97,30 @@ export const handleAdminRequest = async (
       "content-type": "text/html; charset=utf-8",
     });
     response.end(
-      renderAdminDashboardPage({
+      renderWorkspacePage({
         appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Dashboard",
+        title: "Centro operacional do admin",
+        description: "Use o menu para navegar entre mercados, trading e portfolio sem concentrar toda a operacao em uma unica tela.",
+        cards: [
+          {
+            title: "Mercados",
+            description: "Crie, suspenda, feche e acompanhe contratos com regras e resolucoes claras.",
+            href: "/markets",
+            tone: "accent",
+          },
+          {
+            title: "Trading",
+            description: "Area reservada para envio de ordens, acompanhamento operacional e execucao.",
+            href: "/trading",
+          },
+          {
+            title: "Portfolio",
+            description: "Consulte posicoes, PnL e historico de liquidacoes em uma area dedicada.",
+            href: "/portfolio",
+          },
+        ],
       }),
     );
     return;
@@ -146,6 +169,77 @@ export const handleAdminRequest = async (
       path: "/auth/me",
       method: "GET",
     });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/markets") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderAdminDashboardPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderWorkspacePage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Trading",
+        title: "Mesa operacional em preparacao",
+        description: "Esta area vai concentrar envio de ordens, ordens abertas e execucoes sem poluir as telas de mercado.",
+        cards: [
+          {
+            title: "Nova ordem",
+            description: "Formulario dedicado para entrada de ordens com contexto operacional claro.",
+            href: "/trading",
+            tone: "accent",
+          },
+          {
+            title: "Ordens do usuario",
+            description: "Lista de ordens abertas e historico recente com acoes de cancelamento.",
+            href: "/trading",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderWorkspacePage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Portfolio",
+        title: "Portfolio operacional em preparacao",
+        description: "Esta area vai organizar posicoes, PnL e liquidacoes em telas separadas da administracao de mercados.",
+        cards: [
+          {
+            title: "Posicoes",
+            description: "Tabela dedicada para quantidade liquida, preco medio e exposicao por mercado.",
+            href: "/portfolio",
+            tone: "accent",
+          },
+          {
+            title: "PnL e liquidacoes",
+            description: "Resumo financeiro, historico de settlement e consolidacao da operacao.",
+            href: "/portfolio",
+          },
+        ],
+      }),
+    );
     return;
   }
 

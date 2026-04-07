@@ -1,4 +1,5 @@
 import { escapeHtml } from "./html.js";
+import { renderAdminChromeStyles, renderAdminNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderMarketPage = (input: {
@@ -49,8 +50,10 @@ export const renderMarketPage = (input: {
       .shell {
         width: min(1280px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 40px 0 64px;
+        padding: 24px 0 64px;
       }
+
+      ${renderAdminChromeStyles()}
 
       .hero,
       .panel {
@@ -448,6 +451,8 @@ export const renderMarketPage = (input: {
   </head>
   <body>
     <main class="shell">
+      ${renderAdminNavigation({ appName: input.appName, pathname: `/markets/${input.marketUuid}` })}
+
       <section class="hero">
         <div class="hero-top">
           <div>

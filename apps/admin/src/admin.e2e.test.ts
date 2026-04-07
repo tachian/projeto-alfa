@@ -352,8 +352,20 @@ describe("admin sprint 3 e2e", () => {
     const pageHtml = pageResponse.text();
 
     expect(pageResponse.status).toBe(200);
-    expect(pageHtml).toContain("Criar mercado");
-    expect(pageHtml).toContain("Atualizar lista");
+    expect(pageHtml).toContain("Centro operacional do admin");
+    expect(pageHtml).toContain('href="/markets"');
+    expect(pageHtml).toContain('href="/trading"');
+    expect(pageHtml).toContain('href="/portfolio"');
+
+    const marketsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/markets",
+    });
+    const marketsPageHtml = marketsPageResponse.text();
+
+    expect(marketsPageResponse.status).toBe(200);
+    expect(marketsPageHtml).toContain("Criar mercado");
+    expect(marketsPageHtml).toContain("Atualizar lista");
 
     const listResponse = await invokeAdminRoute({
       method: "GET",
@@ -994,8 +1006,19 @@ describe("admin sprint 3 e2e", () => {
       url: "/",
     });
     expect(dashboardResponse.status).toBe(200);
-    expect(dashboardResponse.text()).toContain("Criar mercado");
-    expect(dashboardResponse.text()).toContain('logout("logged-out")');
+    expect(dashboardResponse.text()).toContain("Centro operacional do admin");
+    expect(dashboardResponse.text()).toContain('href="/markets"');
+    expect(dashboardResponse.text()).toContain('href="/trading"');
+    expect(dashboardResponse.text()).toContain('href="/portfolio"');
+
+    const marketsWorkspaceResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/markets",
+    });
+    expect(marketsWorkspaceResponse.status).toBe(200);
+    expect(marketsWorkspaceResponse.text()).toContain("Criar mercado");
+    expect(marketsWorkspaceResponse.text()).toContain('href="/markets" aria-current="page"');
+    expect(marketsWorkspaceResponse.text()).toContain('logout("logged-out")');
 
     const createMarketResponse = await invokeAdminRoute({
       method: "POST",

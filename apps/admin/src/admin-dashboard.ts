@@ -1,9 +1,10 @@
 import { escapeHtml } from "./html.js";
-
+import { renderAdminChromeStyles, renderAdminNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderAdminDashboardPage = (input: {
   appName: string;
+  pathname: string;
 }) => {
   const safeAppName = escapeHtml(input.appName);
 
@@ -47,8 +48,10 @@ export const renderAdminDashboardPage = (input: {
       .shell {
         width: min(1240px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 32px 0 64px;
+        padding: 24px 0 64px;
       }
+
+      ${renderAdminChromeStyles()}
 
       .hero, .panel {
         border-radius: 28px;
@@ -345,11 +348,13 @@ export const renderAdminDashboardPage = (input: {
   </head>
   <body>
     <main class="shell">
+      ${renderAdminNavigation({ appName: input.appName, pathname: input.pathname })}
+
       <section class="hero">
         <div class="hero-top">
           <div>
-            <div class="eyebrow">${safeAppName}</div>
-            <h1>Operacao de mercados em um so painel</h1>
+            <div class="eyebrow">Mercados</div>
+            <h1>Operacao administrativa dos mercados</h1>
             <p>Crie mercados, ajuste regras, suspenda contratos e feche listagens com o mesmo fluxo usado pela API administrativa.</p>
           </div>
           <aside class="identity-card">
