@@ -1511,4 +1511,67 @@ describe("admin sprint 3 e2e", () => {
       }),
     );
   });
+
+  it("links the market page to prefilled trading and filtered portfolio flows", async () => {
+    const marketUuid = "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520";
+
+    const marketPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/markets/${marketUuid}`,
+    });
+
+    expect(marketPageResponse.status).toBe(200);
+    expect(marketPageResponse.text()).toContain(`/trading/new?marketUuid=${marketUuid}`);
+    expect(marketPageResponse.text()).toContain(`/trading/orders?marketUuid=${marketUuid}`);
+    expect(marketPageResponse.text()).toContain(`/portfolio/positions?marketUuid=${marketUuid}`);
+
+    const tradingPrefilledResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/trading/new?marketUuid=${marketUuid}`,
+    });
+
+    expect(tradingPrefilledResponse.status).toBe(200);
+    expect(tradingPrefilledResponse.text()).toContain("Mercado preselecionado a partir da tela anterior");
+    expect(tradingPrefilledResponse.text()).toContain('id="market-select"');
+
+    const portfolioFilteredResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/portfolio/positions?marketUuid=${marketUuid}`,
+    });
+
+    expect(portfolioFilteredResponse.status).toBe(200);
+    expect(portfolioFilteredResponse.text()).toContain("Filtro ativo:");
+    expect(portfolioFilteredResponse.text()).toContain("abrir mercado");
+  });
+
+  it("serves operational summary states for trading and portfolio workspaces", async () => {
+    const tradingOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/orders?marketUuid=market-uuid&status=open&notice=created",
+    });
+
+    expect(tradingOrdersResponse.status).toBe(200);
+    expect(tradingOrdersResponse.text()).toContain("Ordens listadas");
+    expect(tradingOrdersResponse.text()).toContain("Cancelaveis");
+    expect(tradingOrdersResponse.text()).toContain("Nova ordem registrada");
+    expect(tradingOrdersResponse.text()).toContain("Filtros ativos:");
+
+    const portfolioPnlResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/pnl",
+    });
+
+    expect(portfolioPnlResponse.status).toBe(200);
+    expect(portfolioPnlResponse.text()).toContain('id="total-pnl-card"');
+    expect(portfolioPnlResponse.text()).toContain("Nao ha posicoes abertas neste momento.");
+
+    const portfolioSettlementsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/settlements",
+    });
+
+    expect(portfolioSettlementsResponse.status).toBe(200);
+    expect(portfolioSettlementsResponse.text()).toContain("Vitorias");
+    expect(portfolioSettlementsResponse.text()).toContain("Payout total");
+  });
 });
