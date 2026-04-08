@@ -306,53 +306,21 @@ export const renderPortfolioPnlPage = (input: {
         const identityEmail = document.getElementById("identity-email");
         const identityMeta = document.getElementById("identity-meta");
         const session = window.ProjetoAlfaSession;
-        const token = session.getAccessToken();
-
-        if (!token) {
-          session.logout();
-          return;
-        }
-
         document.getElementById("logout-button").addEventListener("click", () => session.logout("logged-out"));
         document.getElementById("denied-switch-account").addEventListener("click", () => session.logout("switch-account"));
         document.getElementById("denied-logout").addEventListener("click", () => session.logout("logged-out"));
 
         try {
-          const meResponse = await session.fetchWithAuth("/api/auth/me");
-          if (!meResponse.ok) {
-            if (meResponse.status === 401) {
-              session.logout("expired");
-              return;
-            }
-
-            throw new Error("Nao foi possivel validar a sessao.");
-          }
-
-          const mePayload = await meResponse.json();
-          const user = mePayload.user;
-
-          session.updateUser(user);
+          const user = await session.resolveAdminUser();
           identityEmail.textContent = user.email;
           identityMeta.textContent = "Role: " + user.role + " • status: " + user.status;
-          session.requireAdminSession(user);
 
           deniedNode.hidden = true;
           workspaceNode.hidden = false;
 
           setStatus("Consultando resumo de PnL...", "default");
 
-          const pnlResponse = await session.fetchWithAuth("/api/portfolio/pnl");
-          if (!pnlResponse.ok) {
-            if (pnlResponse.status === 401) {
-              session.logout("expired");
-              return;
-            }
-
-            const payload = await pnlResponse.json().catch(() => ({ message: "Falha ao carregar PnL." }));
-            throw new Error(payload.message ?? "Falha ao carregar PnL.");
-          }
-
-          const payload = await pnlResponse.json();
+          const payload = await session.fetchJsonWithAuth("/api/portfolio/pnl", { method: "GET" }, "Falha ao carregar PnL.");
           const summary = payload.summary ?? {};
           assignValue("realized-pnl", summary.realizedPnl);
           assignValue("unrealized-pnl", summary.unrealizedPnl);
@@ -360,9 +328,13 @@ export const renderPortfolioPnlPage = (input: {
           assignValue("open-positions", summary.openPositions);
           setStatus("Resumo de PnL carregado com sucesso.", "success");
         } catch (error) {
-          if (error?.code === "forbidden") {
+          const cachedUser = session.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
             workspaceNode.hidden = true;
             deniedNode.hidden = false;
+            identityEmail.textContent = cachedUser.email;
+            identityMeta.textContent = "Role: " + cachedUser.role + " • status: " + cachedUser.status;
             setStatus("Esta conta nao possui role administrativa para consultar o PnL.", "danger");
             return;
           }

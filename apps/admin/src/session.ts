@@ -41,6 +41,12 @@ export type AdminRouteAccessOutcome =
   | { kind: "denied" }
   | { kind: "granted"; user: AdminSessionUser };
 
+type FetchJsonOptions = {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+};
+
 export const ADMIN_SESSION_STORAGE_KEY = "projeto-alfa.admin.session";
 export const ADMIN_TOKEN_STORAGE_KEY = "projeto-alfa.admin.token";
 
@@ -208,6 +214,56 @@ export const createAdminSessionClient = (input: {
       response = await execute();
       return response;
     },
+    async fetchJsonWithAuth(url: string, options: FetchJsonOptions = {}, fallbackMessage = "Nao foi possivel concluir a operacao.") {
+      const response = await this.fetchWithAuth(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers ?? {}),
+        },
+      });
+
+      const payloadText = await response.text();
+      const payload = payloadText ? (JSON.parse(payloadText) as { message?: string; user?: AdminSessionUser }) : null;
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.clear();
+          throw createSessionError("unauthenticated", payload?.message ?? "Sua sessao expirou.");
+        }
+
+        if (response.status === 403) {
+          throw createSessionError("forbidden", payload?.message ?? "Acesso restrito a administradores.");
+        }
+
+        throw createSessionError("request_failed", payload?.message ?? fallbackMessage);
+      }
+
+      return payload;
+    },
+    async resolveAdminUser() {
+      const accessToken = this.getAccessToken();
+
+      if (!accessToken) {
+        throw createSessionError("unauthenticated", "Sessao ausente.");
+      }
+
+      const payload = await this.fetchJsonWithAuth("/api/auth/me", { method: "GET" }, "Nao foi possivel validar a sessao.");
+      const user = payload?.user;
+
+      if (!user) {
+        this.clear();
+        throw createSessionError("unauthenticated", "Sessao invalida.");
+      }
+
+      this.updateUser(user);
+
+      if (user.role !== "admin") {
+        throw createSessionError("forbidden", "Acesso restrito a administradores.");
+      }
+
+      return user;
+    },
     buildLoginRedirectUrl(reason = "") {
       return buildAdminLoginRedirectUrl(input.origin, reason);
     },
@@ -348,6 +404,56 @@ export const renderSessionClientScript = () => {
         await this.refresh();
         response = await execute();
         return response;
+      },
+      async fetchJsonWithAuth(url, options = {}, fallbackMessage = "Nao foi possivel concluir a operacao.") {
+        const response = await this.fetchWithAuth(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers ?? {}),
+          },
+        });
+
+        const payloadText = await response.text();
+        const payload = payloadText ? JSON.parse(payloadText) : null;
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            this.clear();
+            throw createProjetoAlfaSessionError("unauthenticated", payload?.message ?? "Sua sessao expirou.");
+          }
+
+          if (response.status === 403) {
+            throw createProjetoAlfaSessionError("forbidden", payload?.message ?? "Acesso restrito a administradores.");
+          }
+
+          throw createProjetoAlfaSessionError("request_failed", payload?.message ?? fallbackMessage);
+        }
+
+        return payload;
+      },
+      async resolveAdminUser() {
+        const accessToken = this.getAccessToken();
+
+        if (!accessToken) {
+          throw createProjetoAlfaSessionError("unauthenticated", "Sessao ausente.");
+        }
+
+        const payload = await this.fetchJsonWithAuth("/api/auth/me", { method: "GET" }, "Nao foi possivel validar a sessao.");
+        const user = payload?.user;
+
+        if (!user) {
+          this.clear();
+          throw createProjetoAlfaSessionError("unauthenticated", "Sessao invalida.");
+        }
+
+        this.updateUser(user);
+
+        if (user.role !== "admin") {
+          throw createProjetoAlfaSessionError("forbidden", "Acesso restrito a administradores.");
+        }
+
+        return user;
       },
       requireAdminSession(user) {
         if (!user) {

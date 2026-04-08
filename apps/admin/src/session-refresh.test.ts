@@ -211,4 +211,97 @@ describe("createAdminSessionClient refresh flow", () => {
       },
     });
   });
+
+  it("resolves the authenticated admin user from the existing auth endpoint", async () => {
+    const storage = createMemoryStorage();
+    const redirect = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          user: {
+            uuid: "admin-user-uuid",
+            email: "user@example.com",
+            role: "admin",
+            status: "active",
+          },
+        }),
+    });
+
+    const client = createAdminSessionClient({
+      storage,
+      fetch: fetchMock,
+      origin: "http://localhost:3000",
+      redirect,
+    });
+
+    client.save({
+      user: {
+        uuid: "admin-user-uuid",
+        email: "user@example.com",
+        role: "admin",
+        status: "active",
+      },
+      tokens: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        accessTokenExpiresIn: "15m",
+        refreshTokenExpiresIn: "7d",
+      },
+    });
+
+    const user = await client.resolveAdminUser();
+
+    expect(user).toMatchObject({
+      email: "user@example.com",
+      role: "admin",
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/me", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer access-token",
+      },
+    });
+  });
+
+  it("converts 403 responses into a forbidden session error", async () => {
+    const storage = createMemoryStorage();
+    const redirect = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ message: "Acesso restrito a administradores." }),
+    });
+
+    const client = createAdminSessionClient({
+      storage,
+      fetch: fetchMock,
+      origin: "http://localhost:3000",
+      redirect,
+    });
+
+    client.save({
+      user: {
+        uuid: "non-admin-user-uuid",
+        email: "user@example.com",
+        role: "user",
+        status: "active",
+      },
+      tokens: {
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        accessTokenExpiresIn: "15m",
+        refreshTokenExpiresIn: "7d",
+      },
+    });
+
+    await expect(
+      client.fetchJsonWithAuth("/api/admin/markets", { method: "GET" }),
+    ).rejects.toMatchObject({
+      code: "forbidden",
+      message: "Acesso restrito a administradores.",
+    });
+  });
 });

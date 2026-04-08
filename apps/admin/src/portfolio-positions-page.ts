@@ -370,59 +370,31 @@ export const renderPortfolioPositionsPage = (input: {
         const identityEmail = document.getElementById("identity-email");
         const identityMeta = document.getElementById("identity-meta");
         const session = window.ProjetoAlfaSession;
-        const token = session.getAccessToken();
-
-        if (!token) {
-          session.logout();
-          return;
-        }
-
         document.getElementById("logout-button").addEventListener("click", () => session.logout("logged-out"));
         document.getElementById("denied-switch-account").addEventListener("click", () => session.logout("switch-account"));
         document.getElementById("denied-logout").addEventListener("click", () => session.logout("logged-out"));
 
         try {
-          const meResponse = await session.fetchWithAuth("/api/auth/me");
-          if (!meResponse.ok) {
-            if (meResponse.status === 401) {
-              session.logout("expired");
-              return;
-            }
-
-            throw new Error("Nao foi possivel validar a sessao.");
-          }
-
-          const mePayload = await meResponse.json();
-          const user = mePayload.user;
-
-          session.updateUser(user);
+          const user = await session.resolveAdminUser();
           identityEmail.textContent = user.email;
           identityMeta.textContent = "Role: " + user.role + " • status: " + user.status;
-          session.requireAdminSession(user);
 
           deniedNode.hidden = true;
           workspaceNode.hidden = false;
 
           setStatus("Consultando posicoes da carteira...", "default");
 
-          const positionsResponse = await session.fetchWithAuth("/api/portfolio/positions?limit=100");
-          if (!positionsResponse.ok) {
-            if (positionsResponse.status === 401) {
-              session.logout("expired");
-              return;
-            }
-
-            const payload = await positionsResponse.json().catch(() => ({ message: "Falha ao carregar posicoes." }));
-            throw new Error(payload.message ?? "Falha ao carregar posicoes.");
-          }
-
-          const payload = await positionsResponse.json();
+          const payload = await session.fetchJsonWithAuth("/api/portfolio/positions?limit=100", { method: "GET" }, "Falha ao carregar posicoes.");
           renderRows(payload.items ?? []);
           setStatus(selectedMarketUuid ? "Posicoes filtradas por mercado carregadas com sucesso." : "Posicoes carregadas com sucesso.", "success");
         } catch (error) {
-          if (error?.code === "forbidden") {
+          const cachedUser = session.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
             workspaceNode.hidden = true;
             deniedNode.hidden = false;
+            identityEmail.textContent = cachedUser.email;
+            identityMeta.textContent = "Role: " + cachedUser.role + " • status: " + cachedUser.status;
             setStatus("Esta conta nao possui role administrativa para consultar o portfolio.", "danger");
             return;
           }

@@ -306,25 +306,6 @@ export const renderWorkspacePage = (input: {
         window.ProjetoAlfaSession.logout("switch-account");
       };
 
-      const fetchJson = async (url, options = {}) => {
-        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.headers ?? {}),
-          },
-        });
-
-        const payloadText = await response.text();
-        const payload = payloadText ? JSON.parse(payloadText) : null;
-
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
-        }
-
-        return payload;
-      };
-
       const showAccessDenied = (user) => {
         document.getElementById("workspace-content").hidden = true;
         document.getElementById("access-denied").hidden = false;
@@ -335,40 +316,28 @@ export const renderWorkspacePage = (input: {
       };
 
       const bootstrapSession = async () => {
-        const accessToken = window.ProjetoAlfaSession.getAccessToken();
-
-        if (!accessToken) {
-          redirectToLogin();
-          return;
-        }
-
         try {
-          const payload = await fetchJson("/api/auth/me", {
-            method: "GET",
-          });
-
-          try {
-            window.ProjetoAlfaSession.requireAdminSession(payload.user);
-          } catch (error) {
-            if (error?.code === "forbidden") {
-              window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied(payload.user);
-              return;
-            }
-
-            throw error;
-          }
-
-          window.ProjetoAlfaSession.updateUser(payload.user);
+          const user = await window.ProjetoAlfaSession.resolveAdminUser();
           setIdentity({
-            email: payload.user.email,
-            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+            email: user.email,
+            meta: "Role: " + user.role + " | Status: " + user.status,
           });
           setWorkspaceStatus("Sessao validada. Navegue pela area desejada.", "success");
         } catch (error) {
+          const cachedUser = window.ProjetoAlfaSession.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
+            showAccessDenied(cachedUser);
+            return;
+          }
+
+          if (error?.code === "unauthenticated") {
+            redirectToLogin("expired");
+            return;
+          }
+
           window.ProjetoAlfaSession.clear();
-          const reason = error?.code === "unauthenticated" ? "expired" : "";
-          redirectToLogin(reason);
+          redirectToLogin();
         }
       };
 

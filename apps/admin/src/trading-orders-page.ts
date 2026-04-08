@@ -334,25 +334,6 @@ export const renderTradingOrdersPage = (input: {
       const logout = () => window.ProjetoAlfaSession.logout("logged-out");
       const switchAccount = () => window.ProjetoAlfaSession.logout("switch-account");
 
-      const fetchJson = async (url, options = {}) => {
-        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.headers ?? {}),
-          },
-        });
-
-        const payloadText = await response.text();
-        const payload = payloadText ? JSON.parse(payloadText) : null;
-
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
-        }
-
-        return payload;
-      };
-
       const showAccessDenied = (user) => {
         document.getElementById("workspace-content").hidden = true;
         document.getElementById("access-denied").hidden = false;
@@ -410,7 +391,7 @@ export const renderTradingOrdersPage = (input: {
       const loadOrders = async () => {
         setStatus("Carregando ordens...");
         try {
-          const payload = await fetchJson(buildOrdersUrl(), {
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth(buildOrdersUrl(), {
             method: "GET",
           });
           renderOrders(payload.items ?? []);
@@ -422,36 +403,28 @@ export const renderTradingOrdersPage = (input: {
       };
 
       const bootstrapSession = async () => {
-        const accessToken = window.ProjetoAlfaSession.getAccessToken();
-
-        if (!accessToken) {
-          redirectToLogin();
-          return false;
-        }
-
         try {
-          const payload = await fetchJson("/api/auth/me", { method: "GET" });
-
-          try {
-            window.ProjetoAlfaSession.requireAdminSession(payload.user);
-          } catch (error) {
-            if (error?.code === "forbidden") {
-              window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied(payload.user);
-              return false;
-            }
-            throw error;
-          }
-
-          window.ProjetoAlfaSession.updateUser(payload.user);
+          const user = await window.ProjetoAlfaSession.resolveAdminUser();
           setIdentity({
-            email: payload.user.email,
-            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+            email: user.email,
+            meta: "Role: " + user.role + " | Status: " + user.status,
           });
           return true;
         } catch (error) {
+          const cachedUser = window.ProjetoAlfaSession.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
+            showAccessDenied(cachedUser);
+            return false;
+          }
+
+          if (error?.code === "unauthenticated") {
+            redirectToLogin("expired");
+            return false;
+          }
+
           window.ProjetoAlfaSession.clear();
-          redirectToLogin(error?.code === "unauthenticated" ? "expired" : "");
+          redirectToLogin();
           return false;
         }
       };
@@ -466,7 +439,7 @@ export const renderTradingOrdersPage = (input: {
         setStatus("Cancelando ordem...");
 
         try {
-          await fetchJson("/api/orders/" + orderUuid + "/cancel", {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/orders/" + orderUuid + "/cancel", {
             method: "POST",
           });
           setStatus("Ordem cancelada com sucesso.", "success");

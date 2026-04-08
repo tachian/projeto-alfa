@@ -382,25 +382,6 @@ export const renderTradingNewPage = (input: {
       const logout = () => window.ProjetoAlfaSession.logout("logged-out");
       const switchAccount = () => window.ProjetoAlfaSession.logout("switch-account");
 
-      const fetchJson = async (url, options = {}) => {
-        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.headers ?? {}),
-          },
-        });
-
-        const payloadText = await response.text();
-        const payload = payloadText ? JSON.parse(payloadText) : null;
-
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
-        }
-
-        return payload;
-      };
-
       const showAccessDenied = (user) => {
         document.getElementById("workspace-content").hidden = true;
         document.getElementById("access-denied").hidden = false;
@@ -466,31 +447,11 @@ export const renderTradingNewPage = (input: {
       };
 
       const bootstrapSession = async () => {
-        const accessToken = window.ProjetoAlfaSession.getAccessToken();
-
-        if (!accessToken) {
-          redirectToLogin();
-          return false;
-        }
-
         try {
-          const payload = await fetchJson("/api/auth/me", { method: "GET" });
-
-          try {
-            window.ProjetoAlfaSession.requireAdminSession(payload.user);
-          } catch (error) {
-            if (error?.code === "forbidden") {
-              window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied(payload.user);
-              return false;
-            }
-            throw error;
-          }
-
-          window.ProjetoAlfaSession.updateUser(payload.user);
+          const user = await window.ProjetoAlfaSession.resolveAdminUser();
           setIdentity({
-            email: payload.user.email,
-            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+            email: user.email,
+            meta: "Role: " + user.role + " | Status: " + user.status,
           });
           setStatus("Sessao validada. Preencha a ordem.", "success");
 
@@ -503,8 +464,20 @@ export const renderTradingNewPage = (input: {
 
           return true;
         } catch (error) {
+          const cachedUser = window.ProjetoAlfaSession.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
+            showAccessDenied(cachedUser);
+            return false;
+          }
+
+          if (error?.code === "unauthenticated") {
+            redirectToLogin("expired");
+            return false;
+          }
+
           window.ProjetoAlfaSession.clear();
-          redirectToLogin(error?.code === "unauthenticated" ? "expired" : "");
+          redirectToLogin();
           return false;
         }
       };
@@ -523,7 +496,7 @@ export const renderTradingNewPage = (input: {
         };
 
         try {
-          const result = await fetchJson("/api/orders", {
+          const result = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/orders", {
             method: "POST",
             body: JSON.stringify(payload),
           });
