@@ -431,6 +431,194 @@ describe("admin sprint 3 e2e", () => {
     );
   });
 
+  it("serves the portfolio workspace and forwards portfolio proxies", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "position-uuid",
+                marketUuid: "market-uuid",
+                outcome: "YES",
+                netQuantity: 5,
+                averageEntryPrice: "0.54",
+                markPrice: "0.61",
+                realizedPnl: "0.00",
+                unrealizedPnl: "0.35",
+                totalPnl: "0.35",
+                market: {
+                  uuid: "market-uuid",
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            summary: {
+              realizedPnl: "1.20",
+              unrealizedPnl: "0.35",
+              totalPnl: "1.55",
+              openPositions: 2,
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "settlement-uuid",
+                marketUuid: "market-uuid",
+                outcome: "YES",
+                positionDirection: "long",
+                contractsSettled: 5,
+                payoutAmount: "5.00",
+                realizedPnlDelta: "2.30",
+                status: "won",
+                createdAt: "2026-06-18T21:00:00.000Z",
+                market: {
+                  uuid: "market-uuid",
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const workspaceResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio",
+    });
+    const workspaceHtml = workspaceResponse.text();
+
+    expect(workspaceResponse.status).toBe(200);
+    expect(workspaceHtml).toContain("Portfolio operacional em preparacao");
+    expect(workspaceHtml).toContain('href="/portfolio/positions"');
+    expect(workspaceHtml).toContain('href="/portfolio/pnl"');
+    expect(workspaceHtml).toContain('href="/portfolio/settlements"');
+
+    const positionsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/positions",
+    });
+
+    expect(positionsPageResponse.status).toBe(200);
+    expect(positionsPageResponse.text()).toContain("Posicoes em aberto");
+
+    const pnlPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/pnl",
+    });
+
+    expect(pnlPageResponse.status).toBe(200);
+    expect(pnlPageResponse.text()).toContain("PnL consolidado");
+
+    const settlementsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/settlements",
+    });
+
+    expect(settlementsPageResponse.status).toBe(200);
+    expect(settlementsPageResponse.text()).toContain("Historico de liquidacoes");
+
+    const positionsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/positions?limit=100",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(positionsResponse.status).toBe(200);
+    expect(positionsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "position-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    const pnlResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/pnl",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(pnlResponse.status).toBe(200);
+    expect(pnlResponse.json()).toMatchObject({
+      summary: {
+        totalPnl: "1.55",
+        openPositions: 2,
+      },
+    });
+
+    const settlementsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/settlements?limit=100",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(settlementsResponse.status).toBe(200);
+    expect(settlementsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "settlement-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/portfolio/positions?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/portfolio/pnl", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/portfolio/settlements?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+  });
+
   it("serves the market page and forwards market detail and status updates", async () => {
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(

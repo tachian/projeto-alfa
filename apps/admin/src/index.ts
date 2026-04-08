@@ -5,6 +5,9 @@ import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderLoginPage } from "./login-page.js";
 import { renderMarketPage } from "./market-page.js";
+import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
+import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
+import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
 import { renderTradingNewPage } from "./trading-new-page.js";
 import { renderTradingOrdersPage } from "./trading-orders-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
@@ -252,20 +255,64 @@ export const handleAdminRequest = async (
         pathname,
         eyebrow: "Portfolio",
         title: "Portfolio operacional em preparacao",
-        description: "Esta area vai organizar posicoes, PnL e liquidacoes em telas separadas da administracao de mercados.",
+        description: "Esta area organiza posicoes, PnL e liquidacoes em telas separadas da administracao de mercados e da mesa de trading.",
         cards: [
           {
             title: "Posicoes",
             description: "Tabela dedicada para quantidade liquida, preco medio e exposicao por mercado.",
-            href: "/portfolio",
+            href: "/portfolio/positions",
             tone: "accent",
           },
           {
-            title: "PnL e liquidacoes",
-            description: "Resumo financeiro, historico de settlement e consolidacao da operacao.",
-            href: "/portfolio",
+            title: "PnL",
+            description: "Resumo financeiro agregado com realizado, nao realizado e total da carteira.",
+            href: "/portfolio/pnl",
+          },
+          {
+            title: "Liquidacoes",
+            description: "Historico de settlement por mercado para acompanhar o ciclo completo dos contratos.",
+            href: "/portfolio/settlements",
           },
         ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/positions") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioPositionsPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/pnl") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioPnlPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/settlements") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioSettlementsPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
       }),
     );
     return;
@@ -343,6 +390,36 @@ export const handleAdminRequest = async (
       request,
       response,
       path: `/orders${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/positions" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/portfolio/positions${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/pnl" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/portfolio/pnl",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/settlements" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/portfolio/settlements${requestUrl.search}`,
       method: "GET",
     });
     return;
