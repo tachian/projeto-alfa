@@ -13,6 +13,8 @@ describe("renderPortfolioSettlementsPage", () => {
     expect(html).toContain('href="/portfolio" aria-current="page"');
     expect(html).toContain("/api/portfolio/settlements?limit=100");
     expect(html).toContain("Delta PnL");
+    expect(html).toContain("Vitorias");
+    expect(html).toContain("Payout total");
     expect(html).toContain("window.ProjetoAlfaSession");
   });
 });

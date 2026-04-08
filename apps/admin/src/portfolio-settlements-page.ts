@@ -171,6 +171,40 @@ export const renderPortfolioSettlementsPage = (input: {
         padding: 24px;
       }
 
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .summary-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .summary-value {
+        margin-top: 10px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .summary-note {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
       .table-wrap {
         margin-top: 18px;
         overflow: auto;
@@ -211,7 +245,7 @@ export const renderPortfolioSettlementsPage = (input: {
       }
 
       @media (max-width: 980px) {
-        .hero-top {
+        .hero-top, .summary-grid {
           flex-direction: column;
         }
       }
@@ -254,6 +288,28 @@ export const renderPortfolioSettlementsPage = (input: {
         <h2>Settlement por mercado</h2>
         <p>Esta grade mostra status, payout e delta de PnL realizado para acompanhar o ciclo final de cada contrato.</p>
         <div id="settlements-status" class="status">Validando sessao do admin...</div>
+        <div class="summary-grid">
+          <article class="summary-card">
+            <div class="summary-label">Liquidacoes</div>
+            <div id="settlements-total" class="summary-value">-</div>
+            <div class="summary-note">Registros retornados pela consulta atual.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Vitorias</div>
+            <div id="settlements-won" class="summary-value">-</div>
+            <div class="summary-note">Entradas marcadas como won.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Derrotas</div>
+            <div id="settlements-lost" class="summary-value">-</div>
+            <div class="summary-note">Entradas marcadas como lost.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Payout total</div>
+            <div id="settlements-payout" class="summary-value">-</div>
+            <div class="summary-note">Soma do payout dos registros exibidos.</div>
+          </article>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -289,11 +345,28 @@ export const renderPortfolioSettlementsPage = (input: {
         statusNode.textContent = message;
       };
 
+      const assignSummaryValue = (id, value) => {
+        document.getElementById(id).textContent = String(value);
+      };
+
       const renderRows = (items) => {
         if (!items.length) {
+          assignSummaryValue("settlements-total", 0);
+          assignSummaryValue("settlements-won", 0);
+          assignSummaryValue("settlements-lost", 0);
+          assignSummaryValue("settlements-payout", "0.00");
           settlementsBody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma liquidacao encontrada para esta conta.</td></tr>';
           return;
         }
+
+        const wonCount = items.filter((settlement) => settlement.status === "won").length;
+        const lostCount = items.filter((settlement) => settlement.status === "lost").length;
+        const totalPayout = items.reduce((sum, settlement) => sum + Number(settlement.payoutAmount ?? 0), 0);
+
+        assignSummaryValue("settlements-total", items.length);
+        assignSummaryValue("settlements-won", wonCount);
+        assignSummaryValue("settlements-lost", lostCount);
+        assignSummaryValue("settlements-payout", totalPayout.toFixed(2));
 
         settlementsBody.innerHTML = items
           .map((settlement) => {

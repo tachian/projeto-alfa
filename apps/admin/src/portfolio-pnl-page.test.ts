@@ -13,6 +13,7 @@ describe("renderPortfolioPnlPage", () => {
     expect(html).toContain('href="/portfolio" aria-current="page"');
     expect(html).toContain("/api/portfolio/pnl");
     expect(html).toContain("Posicoes abertas");
-    expect(html).toContain("Resumo de PnL carregado com sucesso.");
+    expect(html).toContain("Nao ha posicoes abertas neste momento.");
+    expect(html).toContain('id="total-pnl-card"');
   });
 });

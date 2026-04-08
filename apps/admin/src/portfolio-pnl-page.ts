@@ -190,6 +190,16 @@ export const renderPortfolioPnlPage = (input: {
         border-color: rgba(177, 77, 45, 0.18);
       }
 
+      .summary-card[data-tone="success"] {
+        background: rgba(39, 103, 73, 0.12);
+        border-color: rgba(39, 103, 73, 0.18);
+      }
+
+      .summary-card[data-tone="danger"] {
+        background: rgba(155, 44, 44, 0.12);
+        border-color: rgba(155, 44, 44, 0.18);
+      }
+
       .summary-label {
         font-size: 0.78rem;
         letter-spacing: 0.12em;
@@ -270,7 +280,7 @@ export const renderPortfolioPnlPage = (input: {
             <div id="unrealized-pnl" class="summary-value">-</div>
             <div class="summary-note">Marcacao a mercado das posicoes em aberto.</div>
           </article>
-          <article class="summary-card" data-tone="accent">
+          <article id="total-pnl-card" class="summary-card" data-tone="accent">
             <div class="summary-label">PnL total</div>
             <div id="total-pnl" class="summary-value">-</div>
             <div class="summary-note">Consolidado da operacao no momento da consulta.</div>
@@ -300,6 +310,23 @@ export const renderPortfolioPnlPage = (input: {
         document.getElementById(id).textContent = value ?? "-";
       };
 
+      const updatePnlTone = (value) => {
+        const card = document.getElementById("total-pnl-card");
+        const numericValue = Number(value ?? 0);
+
+        if (numericValue > 0) {
+          card.dataset.tone = "success";
+          return;
+        }
+
+        if (numericValue < 0) {
+          card.dataset.tone = "danger";
+          return;
+        }
+
+        card.dataset.tone = "accent";
+      };
+
       const bootstrap = async () => {
         const deniedNode = document.getElementById("access-denied");
         const workspaceNode = document.getElementById("workspace-content");
@@ -326,7 +353,8 @@ export const renderPortfolioPnlPage = (input: {
           assignValue("unrealized-pnl", summary.unrealizedPnl);
           assignValue("total-pnl", summary.totalPnl);
           assignValue("open-positions", summary.openPositions);
-          setStatus("Resumo de PnL carregado com sucesso.", "success");
+          updatePnlTone(summary.totalPnl);
+          setStatus(Number(summary.openPositions ?? 0) === 0 ? "Resumo carregado. Nao ha posicoes abertas neste momento." : "Resumo de PnL carregado com sucesso.", "success");
         } catch (error) {
           const cachedUser = session.get()?.user;
 

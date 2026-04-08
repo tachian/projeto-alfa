@@ -176,6 +176,53 @@ export const renderTradingOrdersPage = (input: {
         padding: 24px;
       }
 
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .summary-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .summary-value {
+        margin-top: 10px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .summary-note {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(177, 77, 45, 0.1);
+        color: var(--accent);
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
       .filters {
         display: grid;
         grid-template-columns: 1.2fr 1fr auto;
@@ -232,7 +279,7 @@ export const renderTradingOrdersPage = (input: {
       }
 
       @media (max-width: 980px) {
-        .hero-top, .filters {
+        .hero-top, .filters, .summary-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -284,7 +331,30 @@ export const renderTradingOrdersPage = (input: {
           </select>
           <button id="apply-filters" type="button">Atualizar</button>
         </div>
+        <div id="orders-filter-chip" class="filter-chip" hidden></div>
         <div id="orders-status" class="status">Validando sessao do admin...</div>
+        <div class="summary-grid">
+          <article class="summary-card">
+            <div class="summary-label">Ordens listadas</div>
+            <div id="orders-total" class="summary-value">-</div>
+            <div class="summary-note">Total retornado para os filtros atuais.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Abertas</div>
+            <div id="orders-open" class="summary-value">-</div>
+            <div class="summary-note">Prontas para continuar no book.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Executadas</div>
+            <div id="orders-filled" class="summary-value">-</div>
+            <div class="summary-note">Ordens totalmente preenchidas.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Cancelaveis</div>
+            <div id="orders-cancellable" class="summary-value">-</div>
+            <div class="summary-note">Ordens que ainda podem ser canceladas.</div>
+          </article>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -316,10 +386,15 @@ export const renderTradingOrdersPage = (input: {
       const ordersBody = document.getElementById("orders-body");
       const marketFilter = document.getElementById("market-filter");
       const statusFilter = document.getElementById("status-filter");
+      const filterChip = document.getElementById("orders-filter-chip");
 
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
         statusNode.dataset.tone = tone;
+      };
+
+      const assignSummaryValue = (id, value) => {
+        document.getElementById(id).textContent = String(value);
       };
 
       const setIdentity = (input) => {
@@ -345,6 +420,15 @@ export const renderTradingOrdersPage = (input: {
       };
 
       const renderOrders = (items) => {
+        const openCount = items.filter((order) => order.status === "open" || order.status === "partially_filled").length;
+        const filledCount = items.filter((order) => order.status === "filled").length;
+        const cancellableCount = openCount;
+
+        assignSummaryValue("orders-total", items.length);
+        assignSummaryValue("orders-open", openCount);
+        assignSummaryValue("orders-filled", filledCount);
+        assignSummaryValue("orders-cancellable", cancellableCount);
+
         if (!items.length) {
           ordersBody.innerHTML = '<tr><td colspan="9" class="empty-state">Nenhuma ordem encontrada para os filtros atuais.</td></tr>';
           return;
@@ -388,8 +472,33 @@ export const renderTradingOrdersPage = (input: {
         return url.pathname + url.search;
       };
 
+      const syncFilterChip = () => {
+        const query = new URL(window.location.href).searchParams;
+        const marketUuid = query.get("marketUuid") || marketFilter.value.trim();
+        const status = query.get("status") || statusFilter.value.trim();
+        const parts = [];
+
+        if (marketUuid) {
+          parts.push("mercado " + marketUuid);
+        }
+
+        if (status) {
+          parts.push("status " + status);
+        }
+
+        if (!parts.length) {
+          filterChip.hidden = true;
+          filterChip.textContent = "";
+          return;
+        }
+
+        filterChip.hidden = false;
+        filterChip.innerHTML = "Filtros ativos: " + parts.join(" • ") + ' <a class="action-link" href="/trading/orders">limpar</a>';
+      };
+
       const loadOrders = async () => {
         setStatus("Carregando ordens...");
+        syncFilterChip();
         try {
           const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth(buildOrdersUrl(), {
             method: "GET",
@@ -397,6 +506,10 @@ export const renderTradingOrdersPage = (input: {
           renderOrders(payload.items ?? []);
           setStatus("Ordens carregadas com sucesso.", "success");
         } catch (error) {
+          assignSummaryValue("orders-total", 0);
+          assignSummaryValue("orders-open", 0);
+          assignSummaryValue("orders-filled", 0);
+          assignSummaryValue("orders-cancellable", 0);
           ordersBody.innerHTML = '<tr><td colspan="9" class="empty-state">Nao foi possivel carregar as ordens.</td></tr>';
           setStatus(error.message, "danger");
         }
@@ -409,6 +522,10 @@ export const renderTradingOrdersPage = (input: {
             email: user.email,
             meta: "Role: " + user.role + " | Status: " + user.status,
           });
+          const notice = new URL(window.location.href).searchParams.get("notice");
+          if (notice === "created") {
+            setStatus("Nova ordem registrada. Confira abaixo se ela entrou no book ou executou.", "success");
+          }
           return true;
         } catch (error) {
           const cachedUser = window.ProjetoAlfaSession.get()?.user;
@@ -442,6 +559,9 @@ export const renderTradingOrdersPage = (input: {
           await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/orders/" + orderUuid + "/cancel", {
             method: "POST",
           });
+          const url = new URL(window.location.href);
+          url.searchParams.set("notice", "cancelled");
+          window.history.replaceState({}, "", url.toString());
           setStatus("Ordem cancelada com sucesso.", "success");
           await loadOrders();
         } catch (error) {
@@ -456,6 +576,10 @@ export const renderTradingOrdersPage = (input: {
 
       bootstrapSession().then((isAuthenticated) => {
         if (isAuthenticated) {
+          const notice = new URL(window.location.href).searchParams.get("notice");
+          if (notice === "cancelled") {
+            setStatus("Ordem cancelada. A lista abaixo ja foi atualizada.", "success");
+          }
           loadOrders();
         }
       });

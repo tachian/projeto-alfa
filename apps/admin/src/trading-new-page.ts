@@ -502,7 +502,7 @@ export const renderTradingNewPage = (input: {
           });
 
           setStatus("Ordem enviada com sucesso. UUID: " + result.order.uuid, "success");
-          window.location.href = "/trading/orders?marketUuid=" + encodeURIComponent(result.order.marketUuid);
+          window.location.href = "/trading/orders?marketUuid=" + encodeURIComponent(result.order.marketUuid) + "&notice=created";
         } catch (error) {
           setStatus(error.message, "danger");
         }

@@ -198,6 +198,40 @@ export const renderPortfolioPositionsPage = (input: {
         font-weight: 700;
       }
 
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .summary-card {
+        padding: 18px;
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.62);
+      }
+
+      .summary-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .summary-value {
+        margin-top: 10px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .summary-note {
+        margin-top: 8px;
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
       .table-wrap {
         margin-top: 18px;
         overflow: auto;
@@ -238,7 +272,7 @@ export const renderPortfolioPositionsPage = (input: {
       }
 
       @media (max-width: 980px) {
-        .hero-top, .toolbar {
+        .hero-top, .toolbar, .summary-grid {
           flex-direction: column;
           align-items: stretch;
         }
@@ -289,6 +323,28 @@ export const renderPortfolioPositionsPage = (input: {
         </div>
         <div id="market-filter-chip" class="filter-chip" hidden></div>
         <div id="positions-status" class="status">Validando sessao do admin...</div>
+        <div class="summary-grid">
+          <article class="summary-card">
+            <div class="summary-label">Posicoes</div>
+            <div id="positions-total" class="summary-value">-</div>
+            <div class="summary-note">Quantidade de linhas exibidas na grade.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Mercados</div>
+            <div id="positions-markets" class="summary-value">-</div>
+            <div class="summary-note">Contratos distintos representados no recorte atual.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">Long YES</div>
+            <div id="positions-yes" class="summary-value">-</div>
+            <div class="summary-note">Posicoes expostas no outcome YES.</div>
+          </article>
+          <article class="summary-card">
+            <div class="summary-label">PnL consolidado</div>
+            <div id="positions-pnl" class="summary-value">-</div>
+            <div class="summary-note">Soma do PnL total no recorte visivel.</div>
+          </article>
+        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -326,6 +382,10 @@ export const renderPortfolioPositionsPage = (input: {
         statusNode.textContent = message;
       };
 
+      const assignSummaryValue = (id, value) => {
+        document.getElementById(id).textContent = String(value);
+      };
+
       const renderRows = (items) => {
         const filteredItems = selectedMarketUuid
           ? items.filter((position) => position.marketUuid === selectedMarketUuid)
@@ -340,9 +400,22 @@ export const renderPortfolioPositionsPage = (input: {
         }
 
         if (!filteredItems.length) {
+          assignSummaryValue("positions-total", 0);
+          assignSummaryValue("positions-markets", 0);
+          assignSummaryValue("positions-yes", 0);
+          assignSummaryValue("positions-pnl", "0.00");
           positionsBody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma posicao encontrada para este filtro.</td></tr>';
           return;
         }
+
+        const distinctMarkets = new Set(filteredItems.map((position) => position.marketUuid)).size;
+        const yesPositions = filteredItems.filter((position) => position.outcome === "YES").length;
+        const totalPnl = filteredItems.reduce((sum, position) => sum + Number(position.totalPnl ?? 0), 0);
+
+        assignSummaryValue("positions-total", filteredItems.length);
+        assignSummaryValue("positions-markets", distinctMarkets);
+        assignSummaryValue("positions-yes", yesPositions);
+        assignSummaryValue("positions-pnl", totalPnl.toFixed(2));
 
         positionsBody.innerHTML = filteredItems
           .map((position) => {
