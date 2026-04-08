@@ -13,7 +13,9 @@ describe("renderTradingNewPage", () => {
     expect(html).toContain('href="/trading" aria-current="page"');
     expect(html).toContain("/api/orders");
     expect(html).toContain("/api/markets?status=open");
+    expect(html).toContain('id="market-select"');
     expect(html).toContain("Market UUID");
+    expect(html).toContain("Mercado preselecionado");
     expect(html).toContain("Enviar ordem");
   });
 });

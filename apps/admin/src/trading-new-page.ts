@@ -215,6 +215,12 @@ export const renderTradingNewPage = (input: {
         margin-top: 18px;
       }
 
+      .hint {
+        margin-top: 8px;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
       .market-card {
         padding: 16px;
         border-radius: 18px;
@@ -294,9 +300,16 @@ export const renderTradingNewPage = (input: {
           <p>Preencha mercado, lado, resultado, preco e quantidade. Se houver liquidez compatível, o matching pode executar um trade imediatamente.</p>
           <form id="order-form" class="form-grid">
             <label>
+              Mercado aberto
+              <select id="market-select" name="marketSelect">
+                <option value="">Selecione um mercado aberto</option>
+              </select>
+            </label>
+            <label>
               Market UUID
               <input id="market-uuid" name="marketUuid" placeholder="UUID do mercado" required />
             </label>
+            <div id="selected-market-context" class="hint">Voce tambem pode preencher manualmente o UUID se estiver operando um contrato especifico.</div>
             <div class="form-grid two">
               <label>
                 Lado
@@ -349,6 +362,8 @@ export const renderTradingNewPage = (input: {
       const marketsNode = document.getElementById("open-markets");
       const form = document.getElementById("order-form");
       const marketUuidInput = document.getElementById("market-uuid");
+      const marketSelect = document.getElementById("market-select");
+      const selectedMarketContext = document.getElementById("selected-market-context");
 
       const setStatus = (message, tone = "default") => {
         statusNode.textContent = message;
@@ -397,6 +412,10 @@ export const renderTradingNewPage = (input: {
       };
 
       const renderOpenMarkets = (items) => {
+        marketSelect.innerHTML = '<option value="">Selecione um mercado aberto</option>' + items
+          .map((market) => \`<option value="\${market.uuid}">\${market.title}</option>\`)
+          .join("");
+
         if (!items.length) {
           marketsNode.innerHTML = '<div class="empty-state">Nenhum mercado aberto encontrado.</div>';
           return;
@@ -411,11 +430,36 @@ export const renderTradingNewPage = (input: {
         \`).join("");
       };
 
+      const updateSelectedMarketContext = (items) => {
+        const selectedUuid = marketUuidInput.value.trim();
+
+        if (!selectedUuid) {
+          selectedMarketContext.textContent = "Voce tambem pode preencher manualmente o UUID se estiver operando um contrato especifico.";
+          return;
+        }
+
+        const selectedMarket = items.find((market) => market.uuid === selectedUuid);
+
+        if (selectedMarket) {
+          selectedMarketContext.textContent = "Mercado selecionado: " + selectedMarket.title + " (" + selectedMarket.category + ").";
+          return;
+        }
+
+        selectedMarketContext.textContent = "UUID preenchido manualmente. Verifique se o contrato esta correto antes de enviar.";
+      };
+
       const loadOpenMarkets = async () => {
         try {
           const response = await fetch("/api/markets?status=open");
           const payload = await response.json();
-          renderOpenMarkets(payload.items ?? []);
+          const items = payload.items ?? [];
+          renderOpenMarkets(items);
+
+          if (marketUuidInput.value) {
+            marketSelect.value = marketUuidInput.value;
+          }
+
+          updateSelectedMarketContext(items);
         } catch {
           marketsNode.innerHTML = '<div class="empty-state">Nao foi possivel carregar mercados abertos.</div>';
         }
@@ -453,6 +497,8 @@ export const renderTradingNewPage = (input: {
           const query = new URL(window.location.href).searchParams.get("marketUuid");
           if (query) {
             marketUuidInput.value = query;
+            marketSelect.value = query;
+            selectedMarketContext.textContent = "Mercado preselecionado a partir da tela anterior. Revise os parametros da ordem antes do envio.";
           }
 
           return true;
@@ -493,12 +539,28 @@ export const renderTradingNewPage = (input: {
         const button = event.target.closest("button[data-market-uuid]");
         if (!button) return;
         marketUuidInput.value = button.dataset.marketUuid;
+        marketSelect.value = button.dataset.marketUuid;
         setStatus("Mercado selecionado. Ajuste lado, outcome, preco e quantidade.", "success");
+      });
+
+      marketSelect.addEventListener("change", () => {
+        marketUuidInput.value = marketSelect.value;
+        if (marketSelect.value) {
+          setStatus("Mercado selecionado a partir da lista. Ajuste os demais parametros.", "success");
+        }
       });
 
       document.getElementById("logout-button").addEventListener("click", logout);
       document.getElementById("denied-logout").addEventListener("click", logout);
       document.getElementById("denied-switch-account").addEventListener("click", switchAccount);
+      marketUuidInput.addEventListener("input", () => {
+        const options = Array.from(marketSelect.options).map((option) => ({
+          uuid: option.value,
+          title: option.textContent ?? "",
+          category: "",
+        }));
+        updateSelectedMarketContext(options);
+      });
 
       bootstrapSession().then((isAuthenticated) => {
         if (isAuthenticated) {

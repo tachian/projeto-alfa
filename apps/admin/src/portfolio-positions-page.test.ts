@@ -13,6 +13,8 @@ describe("renderPortfolioPositionsPage", () => {
     expect(html).toContain('href="/portfolio" aria-current="page"');
     expect(html).toContain("/api/portfolio/positions?limit=100");
     expect(html).toContain("PnL total");
+    expect(html).toContain("Filtro ativo:");
+    expect(html).toContain("abrir mercado");
     expect(html).toContain("window.ProjetoAlfaSession");
   });
 });

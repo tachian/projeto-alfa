@@ -325,6 +325,31 @@ export const renderMarketPage = (input: {
         margin-top: 18px;
       }
 
+      .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .quick-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        color: white;
+        background: var(--accent);
+      }
+
+      .quick-link.secondary {
+        color: var(--ink);
+        background: rgba(27, 21, 16, 0.08);
+      }
+
       textarea,
       input,
       button {
@@ -483,6 +508,11 @@ export const renderMarketPage = (input: {
               <div class="status-stack">
                 <span class="pill" id="market-status-pill">status</span>
                 <span class="pill" id="socket-status-pill" data-status="connecting">tempo real</span>
+              </div>
+              <div class="quick-links">
+                <a class="quick-link" href="/trading/new?marketUuid=${safeMarketUuid}">Nova ordem neste mercado</a>
+                <a class="quick-link secondary" href="/trading/orders?marketUuid=${safeMarketUuid}">Ver ordens deste mercado</a>
+                <a class="quick-link secondary" href="/portfolio/positions?marketUuid=${safeMarketUuid}">Ver posicoes deste mercado</a>
               </div>
               <div class="meta-grid">
                 <div class="stat">

@@ -185,6 +185,19 @@ export const renderPortfolioPositionsPage = (input: {
         flex-wrap: wrap;
       }
 
+      .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(177, 77, 45, 0.1);
+        color: var(--accent);
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
       .table-wrap {
         margin-top: 18px;
         overflow: auto;
@@ -274,6 +287,7 @@ export const renderPortfolioPositionsPage = (input: {
             <a class="action-link" href="/portfolio/settlements">Ver liquidacoes</a>
           </div>
         </div>
+        <div id="market-filter-chip" class="filter-chip" hidden></div>
         <div id="positions-status" class="status">Validando sessao do admin...</div>
         <div class="table-wrap">
           <table>
@@ -302,6 +316,9 @@ export const renderPortfolioPositionsPage = (input: {
 
       const statusNode = document.getElementById("positions-status");
       const positionsBody = document.getElementById("positions-body");
+      const filterChip = document.getElementById("market-filter-chip");
+
+      const selectedMarketUuid = new URL(window.location.href).searchParams.get("marketUuid");
 
       const setStatus = (message, tone = "default") => {
         statusNode.hidden = false;
@@ -310,16 +327,31 @@ export const renderPortfolioPositionsPage = (input: {
       };
 
       const renderRows = (items) => {
-        if (!items.length) {
-          positionsBody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma posicao encontrada para esta conta.</td></tr>';
+        const filteredItems = selectedMarketUuid
+          ? items.filter((position) => position.marketUuid === selectedMarketUuid)
+          : items;
+
+        if (selectedMarketUuid) {
+          filterChip.hidden = false;
+          filterChip.innerHTML = 'Filtro ativo: ' + selectedMarketUuid + ' <a class="action-link" href="/portfolio/positions">limpar filtro</a>';
+        } else {
+          filterChip.hidden = true;
+          filterChip.textContent = "";
+        }
+
+        if (!filteredItems.length) {
+          positionsBody.innerHTML = '<tr><td colspan="8" class="empty-state">Nenhuma posicao encontrada para este filtro.</td></tr>';
           return;
         }
 
-        positionsBody.innerHTML = items
+        positionsBody.innerHTML = filteredItems
           .map((position) => {
             const marketTitle = position.market?.title ?? position.marketUuid;
+            const marketCell = selectedMarketUuid
+              ? marketTitle + ' <a class="action-link" href="/markets/' + position.marketUuid + '">abrir mercado</a>'
+              : marketTitle;
             return \`<tr>
-              <td>\${marketTitle}</td>
+              <td>\${marketCell}</td>
               <td>\${position.outcome}</td>
               <td>\${position.netQuantity}</td>
               <td>\${position.averageEntryPrice ?? "-"}</td>
@@ -386,7 +418,7 @@ export const renderPortfolioPositionsPage = (input: {
 
           const payload = await positionsResponse.json();
           renderRows(payload.items ?? []);
-          setStatus("Posicoes carregadas com sucesso.", "success");
+          setStatus(selectedMarketUuid ? "Posicoes filtradas por mercado carregadas com sucesso." : "Posicoes carregadas com sucesso.", "success");
         } catch (error) {
           if (error?.code === "forbidden") {
             workspaceNode.hidden = true;
