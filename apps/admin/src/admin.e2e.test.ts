@@ -1129,4 +1129,198 @@ describe("admin sprint 3 e2e", () => {
       }),
     );
   });
+
+  it("serves trading routes and forwards order operations", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "market-uuid",
+                title: "Fed cuts rates in June",
+                category: "macro",
+                closeAt: "2026-06-18T21:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: "order-uuid",
+              marketUuid: "market-uuid",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "order-uuid",
+                marketUuid: "market-uuid",
+                side: "buy",
+                outcome: "YES",
+                status: "open",
+                price: 55,
+                quantity: 10,
+                remainingQuantity: 10,
+                createdAt: "2026-06-10T14:00:00.000Z",
+                market: {
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: "order-uuid",
+              status: "cancelled",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const tradingResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading",
+    });
+    expect(tradingResponse.status).toBe(200);
+    expect(tradingResponse.text()).toContain("Mesa operacional em preparacao");
+    expect(tradingResponse.text()).toContain("/trading/new");
+    expect(tradingResponse.text()).toContain("/trading/orders");
+
+    const tradingNewResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/new",
+    });
+    expect(tradingNewResponse.status).toBe(200);
+    expect(tradingNewResponse.text()).toContain("Nova ordem operacional");
+    expect(tradingNewResponse.text()).toContain("/api/orders");
+
+    const marketsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/markets?status=open",
+    });
+    expect(marketsResponse.status).toBe(200);
+    expect(marketsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "market-uuid",
+        },
+      ],
+    });
+
+    const createOrderResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/orders",
+      headers: {
+        authorization: "Bearer admin-token",
+        "content-type": "application/json",
+      },
+      body: {
+        marketUuid: "market-uuid",
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      },
+    });
+    expect(createOrderResponse.status).toBe(201);
+    expect(createOrderResponse.json()).toMatchObject({
+      order: {
+        uuid: "order-uuid",
+      },
+    });
+
+    const tradingOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/orders",
+    });
+    expect(tradingOrdersResponse.status).toBe(200);
+    expect(tradingOrdersResponse.text()).toContain("Ordens do usuario");
+    expect(tradingOrdersResponse.text()).toContain("/api/orders/");
+
+    const listOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/orders?marketUuid=market-uuid&status=open&limit=50",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(listOrdersResponse.status).toBe(200);
+    expect(listOrdersResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "order-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    const cancelResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/orders/order-uuid/cancel",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.json()).toMatchObject({
+      order: {
+        uuid: "order-uuid",
+        status: "cancelled",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/markets?status=open", "http://localhost:4000"),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/orders", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer admin-token",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/orders?marketUuid=market-uuid&status=open&limit=50", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      new URL("/orders/order-uuid/cancel", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+  });
 });

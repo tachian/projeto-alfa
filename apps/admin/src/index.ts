@@ -5,6 +5,8 @@ import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderLoginPage } from "./login-page.js";
 import { renderMarketPage } from "./market-page.js";
+import { renderTradingNewPage } from "./trading-new-page.js";
+import { renderTradingOrdersPage } from "./trading-orders-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
 const readJsonBody = async (request: IncomingMessage) => {
@@ -200,15 +202,41 @@ export const handleAdminRequest = async (
           {
             title: "Nova ordem",
             description: "Formulario dedicado para entrada de ordens com contexto operacional claro.",
-            href: "/trading",
+            href: "/trading/new",
             tone: "accent",
           },
           {
             title: "Ordens do usuario",
             description: "Lista de ordens abertas e historico recente com acoes de cancelamento.",
-            href: "/trading",
+            href: "/trading/orders",
           },
         ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading/new") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderTradingNewPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading/orders") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderTradingOrdersPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
       }),
     );
     return;
@@ -266,6 +294,25 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/markets" && request.method === "GET") {
+    try {
+      const upstreamResponse = await fetch(new URL(`/markets${requestUrl.search}`, adminConfig.ADMIN_API_URL));
+      const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+      const payload = await upstreamResponse.text();
+
+      response.writeHead(upstreamResponse.status, {
+        "content-type": contentType,
+      });
+      response.end(payload);
+    } catch {
+      response.writeHead(502, {
+        "content-type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify({ message: "Falha ao consultar a API de mercados." }));
+    }
+    return;
+  }
+
   if (request.method === "GET" && pathname.startsWith("/api/markets/")) {
     const remainder = pathname.replace("/api/markets/", "").trim();
     const [marketUuid, resource] = remainder.split("/");
@@ -279,12 +326,35 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/orders" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/orders",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
   if (pathname === "/api/orders" && request.method === "GET") {
     await proxyApiRequest({
       request,
       response,
       path: `/orders${requestUrl.search}`,
       method: "GET",
+    });
+    return;
+  }
+
+  if (pathname.startsWith("/api/orders/") && pathname.endsWith("/cancel") && request.method === "POST") {
+    const orderUuid = pathname.replace("/api/orders/", "").replace("/cancel", "").trim();
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/orders/${orderUuid}/cancel`,
+      method: "POST",
     });
     return;
   }
