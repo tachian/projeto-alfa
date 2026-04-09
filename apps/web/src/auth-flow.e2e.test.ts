@@ -455,4 +455,130 @@ describe("web auth flow e2e", () => {
       }),
     );
   });
+
+  it("forwards portfolio positions, pnl and settlements to the existing portfolio endpoints", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "position-uuid",
+                marketUuid: "33333333-3333-3333-3333-333333333333",
+                outcome: "YES",
+                netQuantity: 4,
+                averageEntryPrice: "55.0000",
+                markPrice: "58.0000",
+                realizedPnl: "0.0000",
+                unrealizedPnl: "0.1200",
+                totalPnl: "0.1200",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            summary: {
+              realizedPnl: "1.2500",
+              unrealizedPnl: "0.5000",
+              totalPnl: "1.7500",
+              openPositions: 2,
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "settlement-uuid",
+                marketUuid: "33333333-3333-3333-3333-333333333333",
+                payoutAmount: "2.0000",
+                status: "won",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const positionsResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/portfolio/positions?limit=100",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(positionsResponse.status).toBe(200);
+    expect(positionsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "position-uuid",
+        },
+      ],
+    });
+
+    const pnlResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/portfolio/pnl",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(pnlResponse.status).toBe(200);
+    expect(pnlResponse.json()).toMatchObject({
+      summary: {
+        totalPnl: "1.7500",
+      },
+    });
+
+    const settlementsResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/portfolio/settlements?limit=100",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(settlementsResponse.status).toBe(200);
+    expect(settlementsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "settlement-uuid",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/portfolio/positions?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/portfolio/pnl", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/portfolio/settlements?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
 });

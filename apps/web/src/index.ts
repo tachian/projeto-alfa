@@ -7,6 +7,9 @@ import { renderLoginPage } from "./login-page.js";
 import { renderMarketDetailPage } from "./market-detail-page.js";
 import { renderMarketsPage } from "./markets-page.js";
 import { renderOrdersPage } from "./orders-page.js";
+import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
+import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
+import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
 import { renderProfilePage } from "./profile-page.js";
 import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
@@ -199,6 +202,30 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/portfolio/positions") {
+    await proxyApiRequest({
+      path: `/portfolio/positions${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/portfolio/pnl") {
+    await proxyApiRequest({
+      path: "/portfolio/pnl",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/portfolio/settlements") {
+    await proxyApiRequest({
+      path: `/portfolio/settlements${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -251,15 +278,53 @@ export const handleWebRequest = async (
           {
             title: "Posicoes",
             description: "Resumo por mercado e outcome com preco medio e exposicao.",
-            href: "/portfolio",
+            href: "/portfolio/positions",
             tone: "accent",
           },
           {
             title: "PnL e liquidacoes",
             description: "Resumo consolidado de resultado e historico das liquidacoes recebidas.",
-            href: "/portfolio",
+            href: "/portfolio/pnl",
+          },
+          {
+            title: "Liquidacoes",
+            description: "Historico de settlements recebidos para fechar o ciclo completo da operacao.",
+            href: "/portfolio/settlements",
           },
         ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/positions") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderPortfolioPositionsPage({
+        appName: webConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/pnl") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderPortfolioPnlPage({
+        appName: webConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/settlements") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderPortfolioSettlementsPage({
+        appName: webConfig.APP_NAME,
+        pathname,
       }),
     );
     return;

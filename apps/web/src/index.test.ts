@@ -108,6 +108,26 @@ describe("web portal routes", () => {
     expect(response.text()).toContain('id="orders-filters-form"');
   });
 
+  it("serves the portfolio workspace and subpages", async () => {
+    const workspaceResponse = await invokeWebRoute("/portfolio");
+    expect(workspaceResponse.status).toBe(200);
+    expect(workspaceResponse.text()).toContain('href="/portfolio/positions"');
+    expect(workspaceResponse.text()).toContain('href="/portfolio/pnl"');
+    expect(workspaceResponse.text()).toContain('href="/portfolio/settlements"');
+
+    const positionsResponse = await invokeWebRoute("/portfolio/positions");
+    expect(positionsResponse.status).toBe(200);
+    expect(positionsResponse.text()).toContain("Posicoes abertas e historicas");
+
+    const pnlResponse = await invokeWebRoute("/portfolio/pnl");
+    expect(pnlResponse.status).toBe(200);
+    expect(pnlResponse.text()).toContain('id="total-pnl-card"');
+
+    const settlementsResponse = await invokeWebRoute("/portfolio/settlements");
+    expect(settlementsResponse.status).toBe(200);
+    expect(settlementsResponse.text()).toContain("Historico de liquidacoes");
+  });
+
   it("forwards public market catalog requests to the api", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
       new Response(JSON.stringify({ items: [] }), {
