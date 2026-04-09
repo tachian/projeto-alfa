@@ -283,12 +283,6 @@ export const renderPortfolioPositionsPage = (input: {
         statusNode.textContent = message;
       };
 
-      const redirectToLogin = (reason = "expired") => {
-        const url = new URL("/login", window.location.origin);
-        url.searchParams.set("reason", reason);
-        window.location.href = url.toString();
-      };
-
       const paintIdentity = (user) => {
         identityEmail.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
@@ -350,7 +344,7 @@ export const renderPortfolioPositionsPage = (input: {
           setStatus(items.length ? "Posicoes carregadas com sucesso." : "Nao ha posicoes abertas neste momento.", items.length ? "success" : "default");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            session.redirectToLogin("expired");
             return;
           }
 
@@ -370,7 +364,7 @@ export const renderPortfolioPositionsPage = (input: {
           return loadPositions();
         })
         .catch(() => {
-          redirectToLogin("expired");
+          session.redirectToLogin("protected");
         });
     </script>
   </body>

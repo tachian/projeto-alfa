@@ -270,12 +270,6 @@ export const renderProfilePage = (input: {
         statusNode.textContent = message;
       };
 
-      const redirectToLogin = (reason = "expired") => {
-        const url = new URL("/login", window.location.origin);
-        url.searchParams.set("reason", reason);
-        window.location.href = url.toString();
-      };
-
       const paintIdentity = (user) => {
         identityName.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
@@ -298,7 +292,7 @@ export const renderProfilePage = (input: {
           setStatus("Perfil carregado. Atualize os dados e salve quando quiser.");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            sessionClient.redirectToLogin("expired");
             return;
           }
 
@@ -330,7 +324,7 @@ export const renderProfilePage = (input: {
           setStatus("Perfil atualizado com sucesso.", "success");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            sessionClient.redirectToLogin("expired");
             return;
           }
 
@@ -340,7 +334,14 @@ export const renderProfilePage = (input: {
         }
       });
 
-      loadProfile();
+      sessionClient.resolveUser()
+        .then((user) => {
+          paintIdentity(user);
+          return loadProfile();
+        })
+        .catch(() => {
+          sessionClient.redirectToLogin("protected");
+        });
     </script>
   </body>
 </html>`;

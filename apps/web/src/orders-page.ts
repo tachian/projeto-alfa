@@ -361,12 +361,6 @@ export const renderOrdersPage = (input: {
       const summaryOpen = document.getElementById("summary-open");
       const summaryCompleted = document.getElementById("summary-completed");
 
-      const redirectToLogin = (reason = "expired") => {
-        const url = new URL("/login", window.location.origin);
-        url.searchParams.set("reason", reason);
-        window.location.href = url.toString();
-      };
-
       const setStatus = (message, tone = "default") => {
         ordersStatus.dataset.tone = tone;
         ordersStatus.textContent = message;
@@ -469,7 +463,7 @@ export const renderOrdersPage = (input: {
               await loadOrders();
             } catch (error) {
               if (error?.code === "unauthenticated") {
-                redirectToLogin("expired");
+                sessionClient.redirectToLogin("expired");
                 return;
               }
 
@@ -502,7 +496,7 @@ export const renderOrdersPage = (input: {
           setStatus("Lista atualizada com sucesso.");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            sessionClient.redirectToLogin("expired");
             return;
           }
 
@@ -529,7 +523,7 @@ export const renderOrdersPage = (input: {
           return loadOrders();
         })
         .catch(() => {
-          redirectToLogin("expired");
+          sessionClient.redirectToLogin("protected");
         });
     </script>
   </body>

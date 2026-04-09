@@ -249,15 +249,27 @@ export const renderAuthPage = (input: {
       const form = document.getElementById("auth-form");
       const statusNode = document.getElementById("auth-status");
       const submitButton = document.getElementById("submit-button");
-      const reason = new URL(window.location.href).searchParams.get("reason");
+      const currentUrl = new URL(window.location.href);
+      const reason = currentUrl.searchParams.get("reason");
+      const returnTo = currentUrl.searchParams.get("returnTo");
 
       const setStatus = (message, tone = "default") => {
         statusNode.dataset.tone = tone;
         statusNode.textContent = message;
       };
 
+      const resolveRedirectTarget = () => {
+        if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+          return returnTo;
+        }
+
+        return ${JSON.stringify(redirectOnSuccess)};
+      };
+
       if (reason === "expired") {
         setStatus("Sua sessao expirou. Entre novamente para continuar.", "danger");
+      } else if (reason === "protected") {
+        setStatus("Faca login para acessar a area solicitada do portal.", "danger");
       } else if (reason === "logged-out") {
         setStatus("Sessao encerrada com sucesso.", "success");
       }
@@ -305,7 +317,7 @@ export const renderAuthPage = (input: {
           setStatus(${JSON.stringify(isRegister ? "Conta criada com sucesso. Redirecionando..." : "Sessao iniciada. Redirecionando...")}, "success");
 
           window.setTimeout(() => {
-            window.location.href = ${JSON.stringify(redirectOnSuccess)};
+            window.location.href = resolveRedirectTarget();
           }, 250);
         } catch {
           setStatus("Nao foi possivel conectar ao portal neste momento. Verifique se o web esta ativo e tente novamente.", "danger");

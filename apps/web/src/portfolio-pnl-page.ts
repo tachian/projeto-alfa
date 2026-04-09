@@ -260,12 +260,6 @@ export const renderPortfolioPnlPage = (input: {
         statusNode.textContent = message;
       };
 
-      const redirectToLogin = (reason = "expired") => {
-        const url = new URL("/login", window.location.origin);
-        url.searchParams.set("reason", reason);
-        window.location.href = url.toString();
-      };
-
       const paintIdentity = (user) => {
         identityEmail.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
@@ -307,7 +301,7 @@ export const renderPortfolioPnlPage = (input: {
           setStatus("Resumo de PnL carregado com sucesso.", "success");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            session.redirectToLogin("expired");
             return;
           }
 
@@ -330,7 +324,7 @@ export const renderPortfolioPnlPage = (input: {
           return loadPnl();
         })
         .catch(() => {
-          redirectToLogin("expired");
+          session.redirectToLogin("protected");
         });
     </script>
   </body>

@@ -39,6 +39,22 @@ export const renderSessionClientScript = () => `
     }
   };
 
+  const normalizeProjetoAlfaReturnTo = (value) => {
+    if (!value || typeof value !== "string") {
+      return "";
+    }
+
+    if (!value.startsWith("/")) {
+      return "";
+    }
+
+    if (value.startsWith("//")) {
+      return "";
+    }
+
+    return value;
+  };
+
   const projetoAlfaWebSession = {
     get() {
       return readProjetoAlfaWebSession();
@@ -155,13 +171,29 @@ export const renderSessionClientScript = () => `
       this.updateUser(payload.user);
       return payload.user;
     },
-    logout(reason = "logged-out") {
-      this.clear();
+    getCurrentPath() {
+      return window.location.pathname + window.location.search;
+    },
+    buildLoginUrl(reason = "protected", returnTo = this.getCurrentPath()) {
       const url = new URL("/login", window.location.origin);
+      const safeReturnTo = normalizeProjetoAlfaReturnTo(returnTo);
+
       if (reason) {
         url.searchParams.set("reason", reason);
       }
-      window.location.href = url.toString();
+
+      if (safeReturnTo) {
+        url.searchParams.set("returnTo", safeReturnTo);
+      }
+
+      return url.toString();
+    },
+    redirectToLogin(reason = "protected", returnTo = this.getCurrentPath()) {
+      window.location.href = this.buildLoginUrl(reason, returnTo);
+    },
+    logout(reason = "logged-out") {
+      this.clear();
+      this.redirectToLogin(reason, "");
     },
   };
 

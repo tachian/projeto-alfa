@@ -14,5 +14,6 @@ describe("renderRegisterPage", () => {
     expect(html).toContain('id="phone"');
     expect(html).toContain('id="password"');
     expect(html).toContain("/api/auth/register");
+    expect(html).toContain("returnTo");
   });
 });

@@ -288,12 +288,6 @@ export const renderPortalPage = (input: {
               });
             }
 
-            const redirectToLogin = (reason = "expired") => {
-              const url = new URL("/login", window.location.origin);
-              url.searchParams.set("reason", reason);
-              window.location.href = url.toString();
-            };
-
             sessionClient.resolveUser()
               .then((user) => {
                 if (identityName) {
@@ -304,7 +298,7 @@ export const renderPortalPage = (input: {
                 }
               })
               .catch(() => {
-                redirectToLogin("expired");
+                sessionClient.redirectToLogin("protected");
               });
           `
           : ""}

@@ -281,12 +281,6 @@ export const renderPortfolioSettlementsPage = (input: {
         statusNode.textContent = message;
       };
 
-      const redirectToLogin = (reason = "expired") => {
-        const url = new URL("/login", window.location.origin);
-        url.searchParams.set("reason", reason);
-        window.location.href = url.toString();
-      };
-
       const paintIdentity = (user) => {
         identityEmail.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
@@ -353,7 +347,7 @@ export const renderPortfolioSettlementsPage = (input: {
           setStatus(items.length ? "Liquidacoes carregadas com sucesso." : "Ainda nao ha liquidacoes registradas.", items.length ? "success" : "default");
         } catch (error) {
           if (error?.code === "unauthenticated") {
-            redirectToLogin("expired");
+            session.redirectToLogin("expired");
             return;
           }
 
@@ -373,7 +367,7 @@ export const renderPortfolioSettlementsPage = (input: {
           return loadSettlements();
         })
         .catch(() => {
-          redirectToLogin("expired");
+          session.redirectToLogin("protected");
         });
     </script>
   </body>

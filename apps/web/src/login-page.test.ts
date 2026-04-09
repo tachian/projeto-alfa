@@ -13,5 +13,7 @@ describe("renderLoginPage", () => {
     expect(html).toContain("/api/auth/login");
     expect(html).toContain("window.ProjetoAlfaWebSession");
     expect(html).toContain("Email ou senha invalidos");
+    expect(html).toContain("returnTo");
+    expect(html).toContain("Faca login para acessar a area solicitada do portal.");
   });
 });

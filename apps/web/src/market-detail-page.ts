@@ -353,12 +353,6 @@ export const renderMarketDetailPage = (input: {
           tradeStatusNode.textContent = message;
         };
 
-        const redirectToLogin = (reason = "expired") => {
-          const url = new URL("/login", window.location.origin);
-          url.searchParams.set("reason", reason);
-          window.location.href = url.toString();
-        };
-
         const renderBook = (levels) => {
           if (!levels.length) {
             return "<p>Nenhuma ordem aberta neste mercado no momento.</p>";
@@ -479,7 +473,7 @@ export const renderMarketDetailPage = (input: {
             await loadMarket();
           } catch (error) {
             if (error?.code === "unauthenticated") {
-              redirectToLogin("expired");
+              sessionClient.redirectToLogin("expired");
               return;
             }
 
