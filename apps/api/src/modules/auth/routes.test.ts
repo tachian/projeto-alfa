@@ -31,7 +31,9 @@ const testDependenciesPlugin: FastifyPluginAsync = fp(async (fastify) => {
 
 const makeUser = () => ({
   uuid: "11111111-1111-1111-1111-111111111111",
+  name: "Usuario Exemplo",
   email: "user@example.com",
+  phone: "+5585999999999",
   role: "user",
   status: "active",
   createdAt: new Date("2026-03-27T10:00:00.000Z"),
@@ -87,6 +89,12 @@ describe("auth routes", () => {
       email: "user@example.com",
       password: "password123",
     });
+    expect(response.json()).toMatchObject({
+      user: {
+        name: "Usuario Exemplo",
+        phone: "+5585999999999",
+      },
+    });
 
     await server.close();
   });
@@ -114,7 +122,9 @@ describe("auth routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       user: {
+        name: "Usuario Exemplo",
         email: "user@example.com",
+        phone: "+5585999999999",
       },
       tokens: {
         accessToken: "access-token",
@@ -184,6 +194,8 @@ describe("auth routes", () => {
     expect(response.json()).toMatchObject({
       user: {
         uuid: "11111111-1111-1111-1111-111111111111",
+        name: "Usuario Exemplo",
+        phone: "+5585999999999",
       },
     });
 

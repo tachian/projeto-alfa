@@ -15,7 +15,9 @@ import type { AuthResult, AuthTokens, LoginInput, RegisterInput } from "./types.
 
 export type CurrentUser = {
   uuid: string;
+  name?: string | null;
   email: string;
+  phone?: string | null;
   role: string;
   status: string;
   createdAt: Date;
@@ -51,14 +53,18 @@ const computeExpiryDate = (token: string) => {
 
 const mapUser = (user: {
   uuid: string;
+  name?: string | null;
   email: string;
+  phone?: string | null;
   role: string;
   status: string;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
   uuid: user.uuid,
+  name: user.name ?? null,
   email: user.email,
+  phone: user.phone ?? null,
   role: user.role,
   status: user.status,
   createdAt: user.createdAt,
