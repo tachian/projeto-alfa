@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { handleWebRequest } from "./index.js";
 
@@ -61,6 +61,12 @@ const invokeWebRoute = async (url: string) => {
 };
 
 describe("web portal routes", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
   it("serves the home page", async () => {
     const response = await invokeWebRoute("/");
 
@@ -76,6 +82,49 @@ describe("web portal routes", () => {
     expect(response.text()).toContain("Criar conta");
     expect(response.text()).toContain("nome, email, telefone e senha");
     expect(response.text()).toContain("/api/auth/register");
+  });
+
+  it("serves the market catalog page", async () => {
+    const response = await invokeWebRoute("/markets");
+
+    expect(response.status).toBe(200);
+    expect(response.text()).toContain("Catalogo publico");
+    expect(response.text()).toContain('id="markets-grid"');
+  });
+
+  it("serves the market detail page", async () => {
+    const response = await invokeWebRoute("/markets/11111111-1111-1111-1111-111111111111");
+
+    expect(response.status).toBe(200);
+    expect(response.text()).toContain("Resolucao do mercado");
+    expect(response.text()).toContain("marketUuid");
+  });
+
+  it("forwards public market catalog requests to the api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const response = createMockResponse();
+    const request = createMockRequest({
+      method: "GET",
+      url: "/api/markets?status=open",
+    });
+
+    await handleWebRequest(request as never, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/markets?status=open", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
   });
 
   it("returns a foundation-oriented 404 page for unknown routes", async () => {

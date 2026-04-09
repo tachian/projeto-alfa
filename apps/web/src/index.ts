@@ -4,6 +4,8 @@ import { pathToFileURL } from "node:url";
 import { webConfig } from "./config.js";
 import { renderHomePage } from "./home-page.js";
 import { renderLoginPage } from "./login-page.js";
+import { renderMarketDetailPage } from "./market-detail-page.js";
+import { renderMarketsPage } from "./markets-page.js";
 import { renderProfilePage } from "./profile-page.js";
 import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
@@ -134,30 +136,61 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/markets") {
+    await proxyApiRequest({
+      path: `/markets${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && /^\/api\/markets\/[0-9a-f-]+$/.test(pathname)) {
+    const marketUuid = pathname.replace("/api/markets/", "");
+    await proxyApiRequest({
+      path: `/markets/${marketUuid}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && /^\/api\/markets\/[0-9a-f-]+\/book$/.test(pathname)) {
+    const marketUuid = pathname.replace("/api/markets/", "").replace("/book", "");
+    await proxyApiRequest({
+      path: `/markets/${marketUuid}/book`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && /^\/api\/markets\/[0-9a-f-]+\/trades$/.test(pathname)) {
+    const marketUuid = pathname.replace("/api/markets/", "").replace("/trades", "");
+    await proxyApiRequest({
+      path: `/markets/${marketUuid}/trades${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderMarketsPage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Mercados",
-        title: "Catalogo desenhado para consulta rapida e decisao clara.",
-        description:
-          "Esta area vai concentrar a listagem publica de contratos, filtros por categoria e vencimento, detalhe de mercado, book e ultimas execucoes.",
-        status: "Proxima etapa: ligar esta pagina ao catalogo publico ja disponivel na API.",
-        cards: [
-          {
-            title: "Listagem publica",
-            description: "Entrada para explorar mercados abertos e resolvidos com filtros simples.",
-            href: "/markets",
-            tone: "accent",
-          },
-          {
-            title: "Detalhe do mercado",
-            description: "Espaco para regras, book, ultimas execucoes e formulario de ordem.",
-            href: "/markets",
-          },
-        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && /^\/markets\/[0-9a-f-]+$/.test(pathname)) {
+    const marketUuid = pathname.replace("/markets/", "");
+
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderMarketDetailPage({
+        appName: webConfig.APP_NAME,
+        pathname,
+        marketUuid,
       }),
     );
     return;
