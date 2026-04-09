@@ -22,7 +22,9 @@ export type AuthResult = {
 };
 
 export type RegisterInput = {
+  name: string;
   email: string;
+  phone: string;
   password: string;
 };
 

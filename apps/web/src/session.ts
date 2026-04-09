@@ -1,0 +1,152 @@
+export type WebSessionUser = {
+  uuid: string;
+  name?: string | null;
+  email: string;
+  phone?: string | null;
+  role: string;
+  status: string;
+};
+
+export type WebSessionTokens = {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresIn: string;
+  refreshTokenExpiresIn: string;
+};
+
+export type WebSession = {
+  user: WebSessionUser;
+  tokens: WebSessionTokens;
+};
+
+export const WEB_SESSION_STORAGE_KEY = "projeto-alfa.web.session";
+
+export const renderSessionClientScript = () => `
+  const projetoAlfaWebSessionKey = ${JSON.stringify(WEB_SESSION_STORAGE_KEY)};
+
+  const createProjetoAlfaWebSessionError = (code, message) => {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+  };
+
+  const readProjetoAlfaWebSession = () => {
+    try {
+      const value = localStorage.getItem(projetoAlfaWebSessionKey);
+      return value ? JSON.parse(value) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const projetoAlfaWebSession = {
+    get() {
+      return readProjetoAlfaWebSession();
+    },
+    save(session) {
+      localStorage.setItem(projetoAlfaWebSessionKey, JSON.stringify(session));
+    },
+    clear() {
+      localStorage.removeItem(projetoAlfaWebSessionKey);
+    },
+    getAccessToken() {
+      return this.get()?.tokens?.accessToken ?? "";
+    },
+    updateUser(user) {
+      const session = this.get();
+      if (!session) {
+        return;
+      }
+
+      session.user = user;
+      this.save(session);
+    },
+    async refresh() {
+      const refreshToken = this.get()?.tokens?.refreshToken;
+
+      if (!refreshToken) {
+        this.clear();
+        throw createProjetoAlfaWebSessionError("unauthenticated", "Sessao ausente.");
+      }
+
+      const response = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refreshToken,
+        }),
+      });
+
+      const payloadText = await response.text();
+      const payload = payloadText ? JSON.parse(payloadText) : null;
+
+      if (!response.ok) {
+        this.clear();
+        throw createProjetoAlfaWebSessionError("unauthenticated", payload?.message ?? "Sua sessao expirou.");
+      }
+
+      this.save(payload);
+      return payload;
+    },
+    async fetchWithAuth(url, options = {}) {
+      const execute = async () => {
+        const token = this.getAccessToken();
+
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...(options.headers ?? {}),
+            ...(token ? { Authorization: "Bearer " + token } : {}),
+          },
+        });
+      };
+
+      let response = await execute();
+
+      if (response.status !== 401) {
+        return response;
+      }
+
+      await this.refresh();
+      response = await execute();
+      return response;
+    },
+    async resolveUser() {
+      const accessToken = this.getAccessToken();
+
+      if (!accessToken) {
+        throw createProjetoAlfaWebSessionError("unauthenticated", "Sessao ausente.");
+      }
+
+      const response = await this.fetchWithAuth("/api/auth/me", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const payloadText = await response.text();
+      const payload = payloadText ? JSON.parse(payloadText) : null;
+
+      if (!response.ok || !payload?.user) {
+        this.clear();
+        throw createProjetoAlfaWebSessionError("unauthenticated", payload?.message ?? "Nao foi possivel validar a sessao.");
+      }
+
+      this.updateUser(payload.user);
+      return payload.user;
+    },
+    logout(reason = "logged-out") {
+      this.clear();
+      const url = new URL("/login", window.location.origin);
+      if (reason) {
+        url.searchParams.set("reason", reason);
+      }
+      window.location.href = url.toString();
+    },
+  };
+
+  window.ProjetoAlfaWebSession = projetoAlfaWebSession;
+`;

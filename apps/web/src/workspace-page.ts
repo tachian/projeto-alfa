@@ -7,6 +7,7 @@ export const renderWorkspacePage = (input: {
   title: string;
   description: string;
   status?: string;
+  authMode?: "public" | "protected";
   cards: Array<{
     title: string;
     description: string;
@@ -21,5 +22,6 @@ export const renderWorkspacePage = (input: {
     title: input.title,
     description: input.description,
     status: input.status,
+    authMode: input.authMode,
     cards: input.cards,
   });

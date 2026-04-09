@@ -5,6 +5,13 @@ import { AuthError, AuthService } from "./service.js";
 import { verifyAccessToken } from "./tokens.js";
 
 const registerSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email(),
+  phone: z.string().trim().min(8).max(32),
+  password: z.string().min(8).max(128),
+});
+
+const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(128),
 });
@@ -39,7 +46,7 @@ export const buildAuthRoutes = (
   });
 
   fastify.post("/auth/login", async (request, reply) => {
-    const input = registerSchema.parse(request.body);
+    const input = loginSchema.parse(request.body);
 
     try {
       return await authService.login(input);

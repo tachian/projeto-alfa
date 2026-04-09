@@ -1,5 +1,6 @@
 import { escapeHtml } from "./html.js";
 import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderSessionClientScript } from "./session.js";
 
 type PortalCard = {
   title: string;
@@ -16,6 +17,7 @@ export const renderPortalPage = (input: {
   description: string;
   cards: PortalCard[];
   status?: string;
+  authMode?: "public" | "protected";
 }) => {
   const safeTitle = escapeHtml(input.title);
   const safeDescription = escapeHtml(input.description);
@@ -118,6 +120,49 @@ export const renderPortalPage = (input: {
         background: linear-gradient(135deg, rgba(3, 105, 161, 0.12), rgba(15, 118, 110, 0.08));
       }
 
+      .identity-card {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .identity-label {
+        color: #64748b;
+        font-size: 0.76rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .identity-value {
+        margin-top: 6px;
+        font-weight: 700;
+      }
+
+      .identity-meta {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .identity-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 14px;
+      }
+
+      .identity-actions button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        color: #0f172a;
+        background: rgba(15, 23, 42, 0.06);
+      }
+
       .highlight strong {
         display: block;
         font-size: 1rem;
@@ -195,6 +240,18 @@ export const renderPortalPage = (input: {
               <li>Mercados acessiveis sem poluir o admin.</li>
               <li>Area autenticada para ordens e portfolio.</li>
             </ul>
+            ${input.authMode === "protected"
+              ? `
+                <div class="identity-card">
+                  <div class="identity-label">Sessao</div>
+                  <div id="identity-name" class="identity-value">Validando sessao...</div>
+                  <div id="identity-meta" class="identity-meta">Esta area exige autenticacao do usuario comum.</div>
+                  <div class="identity-actions">
+                    <button id="logout-button" type="button">Sair</button>
+                  </div>
+                </div>
+              `
+              : ""}
           </aside>
         </div>
       </section>
@@ -214,6 +271,44 @@ export const renderPortalPage = (input: {
             .join("")}
         </div>
       </section>
+
+      <script>
+        ${renderSessionClientScript()}
+
+        ${input.authMode === "protected"
+          ? `
+            const sessionClient = window.ProjetoAlfaWebSession;
+            const identityName = document.getElementById("identity-name");
+            const identityMeta = document.getElementById("identity-meta");
+            const logoutButton = document.getElementById("logout-button");
+
+            if (logoutButton) {
+              logoutButton.addEventListener("click", () => {
+                sessionClient.logout("logged-out");
+              });
+            }
+
+            const redirectToLogin = (reason = "expired") => {
+              const url = new URL("/login", window.location.origin);
+              url.searchParams.set("reason", reason);
+              window.location.href = url.toString();
+            };
+
+            sessionClient.resolveUser()
+              .then((user) => {
+                if (identityName) {
+                  identityName.textContent = user.name || user.email;
+                }
+                if (identityMeta) {
+                  identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
+                }
+              })
+              .catch(() => {
+                redirectToLogin("expired");
+              });
+          `
+          : ""}
+      </script>
     </main>
   </body>
 </html>`;

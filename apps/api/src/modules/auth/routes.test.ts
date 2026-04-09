@@ -79,14 +79,18 @@ describe("auth routes", () => {
       method: "POST",
       url: "/auth/register",
       payload: {
+        name: "  Usuario Exemplo  ",
         email: "USER@example.com",
+        phone: " +55 85 99999-9999 ",
         password: "password123",
       },
     });
 
     expect(response.statusCode).toBe(201);
     expect(registerMock).toHaveBeenCalledWith({
+      name: "Usuario Exemplo",
       email: "user@example.com",
+      phone: "+55 85 99999-9999",
       password: "password123",
     });
     expect(response.json()).toMatchObject({

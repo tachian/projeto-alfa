@@ -87,7 +87,9 @@ export class AuthService implements AuthServiceContract {
 
     const user = await prisma.user.create({
       data: {
+        name: input.name,
         email: input.email,
+        phone: input.phone,
         passwordHash,
         role: "user",
         status: "pending_verification",
@@ -104,7 +106,9 @@ export class AuthService implements AuthServiceContract {
       targetType: "user",
       targetUuid: user.uuid,
       payload: {
+        name: user.name,
         email: user.email,
+        phone: user.phone,
       },
     });
 

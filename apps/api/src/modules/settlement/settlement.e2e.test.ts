@@ -996,7 +996,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Buyer Example",
           email: "buyer@example.com",
+          phone: "+5585111111111",
           password,
         },
       });
@@ -1007,7 +1009,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Seller Example",
           email: "seller@example.com",
+          phone: "+5585222222222",
           password,
         },
       });
@@ -1018,7 +1022,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Admin Example",
           email: "admin@example.com",
+          phone: "+5585333333333",
           password,
         },
       });

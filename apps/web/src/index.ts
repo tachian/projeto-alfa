@@ -1,24 +1,72 @@
+import type { IncomingMessage } from "node:http";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 import { webConfig } from "./config.js";
 import { renderHomePage } from "./home-page.js";
+import { renderLoginPage } from "./login-page.js";
+import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
+const readJsonBody = async (request: IncomingMessage) => {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  if (!chunks.length) {
+    return null;
+  }
+
+  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+};
+
 export const createWebServer = () => createServer(async (request, response) => {
-  await handleWebRequest(request.url ?? "/", response);
+  await handleWebRequest(request, response);
 });
 
 export const handleWebRequest = async (
-  url: string,
+  request: IncomingMessage,
   response: {
     writeHead: (statusCode: number, headers: Record<string, string>) => void;
     end: (payload?: string) => void;
   },
 ) => {
-  const requestUrl = new URL(url, webConfig.APP_URL);
+  const proxyApiRequest = async (input: {
+    path: string;
+    method: string;
+    body?: unknown;
+  }) => {
+    try {
+      const authorization = request.headers.authorization;
+      const upstreamResponse = await fetch(new URL(input.path, webConfig.API_URL), {
+        method: input.method,
+        headers: {
+          ...(authorization ? { Authorization: authorization } : {}),
+          ...(input.body ? { "Content-Type": "application/json" } : {}),
+        },
+        body: input.body ? JSON.stringify(input.body) : undefined,
+      });
+
+      const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+      const payload = await upstreamResponse.text();
+
+      response.writeHead(upstreamResponse.status, {
+        "content-type": contentType,
+      });
+      response.end(payload);
+    } catch {
+      response.writeHead(502, {
+        "content-type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify({ message: "Falha ao consultar a API do portal." }));
+    }
+  };
+
+  const requestUrl = new URL(request.url ?? "/", webConfig.APP_URL);
   const pathname = requestUrl.pathname;
 
-  if (pathname === "/") {
+  if (request.method === "GET" && pathname === "/") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderHomePage({
@@ -29,7 +77,45 @@ export const handleWebRequest = async (
     return;
   }
 
-  if (pathname === "/markets") {
+  if (request.method === "POST" && pathname === "/api/auth/register") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/auth/register",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/api/auth/login") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/auth/login",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/api/auth/refresh") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/auth/refresh",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/auth/me") {
+    await proxyApiRequest({
+      path: "/auth/me",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderWorkspacePage({
@@ -58,7 +144,7 @@ export const handleWebRequest = async (
     return;
   }
 
-  if (pathname === "/orders") {
+  if (request.method === "GET" && pathname === "/orders") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderWorkspacePage({
@@ -69,6 +155,7 @@ export const handleWebRequest = async (
         description:
           "Aqui o usuario comum vai enviar ordens, acompanhar status, cancelar ordens abertas e revisar o historico recente sem depender do painel administrativo.",
         status: "Proxima etapa: integrar POST /orders, GET /orders e cancelamento de ordem.",
+        authMode: "protected",
         cards: [
           {
             title: "Nova ordem",
@@ -87,7 +174,7 @@ export const handleWebRequest = async (
     return;
   }
 
-  if (pathname === "/portfolio") {
+  if (request.method === "GET" && pathname === "/portfolio") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderWorkspacePage({
@@ -98,6 +185,7 @@ export const handleWebRequest = async (
         description:
           "A experiencia do usuario vai separar claramente o acompanhamento de performance da area de envio de ordens, reduzindo ruido e facilitando leitura de resultado.",
         status: "Proxima etapa: integrar posicoes, resumo de PnL e historico de liquidacoes.",
+        authMode: "protected",
         cards: [
           {
             title: "Posicoes",
@@ -116,7 +204,7 @@ export const handleWebRequest = async (
     return;
   }
 
-  if (pathname === "/account/profile") {
+  if (request.method === "GET" && pathname === "/account/profile") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderWorkspacePage({
@@ -127,6 +215,7 @@ export const handleWebRequest = async (
         description:
           "Esta area vai concentrar cadastro inicial, atualizacao de nome, email e telefone, alem de preparar o caminho para KYC e seguranca da conta.",
         status: "Proxima etapa: integrar GET /users/me e PATCH /users/me.",
+        authMode: "protected",
         cards: [
           {
             title: "Perfil",
@@ -145,59 +234,21 @@ export const handleWebRequest = async (
     return;
   }
 
-  if (pathname === "/login") {
+  if (request.method === "GET" && pathname === "/login") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderLoginPage({
         appName: webConfig.APP_NAME,
-        pathname,
-        eyebrow: "Entrar",
-        title: "Login preparado para reutilizar auth existente.",
-        description:
-          "O portal vai reutilizar os mesmos endpoints de autenticacao do projeto, mantendo refresh token e bootstrap de sessao alinhados com o restante da plataforma.",
-        status: "Proxima etapa: integrar POST /auth/login, GET /auth/me e POST /auth/refresh.",
-        cards: [
-          {
-            title: "Sessao do usuario",
-            description: "Bootstrap de sessao e protecao de rotas autenticadas.",
-            href: "/login",
-            tone: "accent",
-          },
-          {
-            title: "Cadastro",
-            description: "Fluxo complementar para criar uma conta antes do login.",
-            href: "/register",
-          },
-        ],
       }),
     );
     return;
   }
 
-  if (pathname === "/register") {
+  if (request.method === "GET" && pathname === "/register") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderRegisterPage({
         appName: webConfig.APP_NAME,
-        pathname,
-        eyebrow: "Criar conta",
-        title: "Onboarding enxuto para entrar rapido no mercado.",
-        description:
-          "O cadastro vai começar com informacoes basicas: nome, email, telefone e senha, deixando a jornada pronta para login imediato e futura validacao de identidade.",
-        status: "Proxima etapa: expandir users com name e phone e integrar POST /auth/register.",
-        cards: [
-          {
-            title: "Formulario inicial",
-            description: "Captura das informacoes basicas para criacao de conta.",
-            href: "/register",
-            tone: "accent",
-          },
-          {
-            title: "Ja tenho conta",
-            description: "Acesso ao portal com email e senha ja cadastrados.",
-            href: "/login",
-          },
-        ],
       }),
     );
     return;
