@@ -316,4 +316,143 @@ describe("web auth flow e2e", () => {
       },
     });
   });
+
+  it("forwards order creation, listing and cancellation to the existing trading endpoints", async () => {
+    const orderUuid = "11111111-1111-1111-1111-111111111111";
+    const marketUuid = "22222222-2222-2222-2222-222222222222";
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: orderUuid,
+              marketUuid,
+              side: "buy",
+              outcome: "YES",
+              status: "open",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: orderUuid,
+                marketUuid,
+                side: "buy",
+                outcome: "YES",
+                status: "open",
+                price: 55,
+                quantity: 3,
+                remainingQuantity: 3,
+                createdAt: "2026-04-09T10:00:00.000Z",
+                market: {
+                  uuid: marketUuid,
+                  title: "Vai chover?",
+                },
+              },
+            ],
+            meta: {
+              count: 1,
+              limit: 20,
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: orderUuid,
+              status: "cancelled",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const createResponse = await invokeWebRoute({
+      method: "POST",
+      url: "/api/orders",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+      },
+      body: {
+        marketUuid,
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 3,
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.json()).toMatchObject({
+      order: {
+        uuid: orderUuid,
+      },
+    });
+
+    const listResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/orders?status=open&limit=20",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(listResponse.status).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: orderUuid,
+        },
+      ],
+    });
+
+    const cancelResponse = await invokeWebRoute({
+      method: "POST",
+      url: "/api/orders/" + orderUuid + "/cancel",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.json()).toMatchObject({
+      order: {
+        status: "cancelled",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/orders", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/orders?status=open&limit=20", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/orders/" + orderUuid + "/cancel", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+  });
 });

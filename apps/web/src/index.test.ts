@@ -100,6 +100,14 @@ describe("web portal routes", () => {
     expect(response.text()).toContain("marketUuid");
   });
 
+  it("serves the authenticated orders page", async () => {
+    const response = await invokeWebRoute("/orders");
+
+    expect(response.status).toBe(200);
+    expect(response.text()).toContain("Seu trilho operacional no portal.");
+    expect(response.text()).toContain('id="orders-filters-form"');
+  });
+
   it("forwards public market catalog requests to the api", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
       new Response(JSON.stringify({ items: [] }), {

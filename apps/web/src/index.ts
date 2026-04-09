@@ -6,6 +6,7 @@ import { renderHomePage } from "./home-page.js";
 import { renderLoginPage } from "./login-page.js";
 import { renderMarketDetailPage } from "./market-detail-page.js";
 import { renderMarketsPage } from "./markets-page.js";
+import { renderOrdersPage } from "./orders-page.js";
 import { renderProfilePage } from "./profile-page.js";
 import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
@@ -171,6 +172,33 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "POST" && pathname === "/api/orders") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/orders",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/orders") {
+    await proxyApiRequest({
+      path: `/orders${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "POST" && /^\/api\/orders\/[0-9a-f-]+\/cancel$/.test(pathname)) {
+    const orderUuid = pathname.replace("/api/orders/", "").replace("/cancel", "");
+    await proxyApiRequest({
+      path: `/orders/${orderUuid}/cancel`,
+      method: "POST",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -199,28 +227,9 @@ export const handleWebRequest = async (
   if (request.method === "GET" && pathname === "/orders") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderOrdersPage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Ordens",
-        title: "Area autenticada para acompanhar e operar.",
-        description:
-          "Aqui o usuario comum vai enviar ordens, acompanhar status, cancelar ordens abertas e revisar o historico recente sem depender do painel administrativo.",
-        status: "Proxima etapa: integrar POST /orders, GET /orders e cancelamento de ordem.",
-        authMode: "protected",
-        cards: [
-          {
-            title: "Nova ordem",
-            description: "Formulario contextual dentro do mercado para buy ou sell em contratos binarios.",
-            href: "/markets",
-            tone: "accent",
-          },
-          {
-            title: "Historico operacional",
-            description: "Lista de ordens abertas, parcialmente executadas, executadas e canceladas.",
-            href: "/orders",
-          },
-        ],
       }),
     );
     return;

@@ -13,7 +13,9 @@ describe("renderMarketDetailPage", () => {
     expect(html).toContain("Resolucao do mercado");
     expect(html).toContain('id="order-book"');
     expect(html).toContain('id="market-trades"');
+    expect(html).toContain('id="trade-form"');
+    expect(html).toContain("/api/orders");
     expect(html).toContain('/api/markets/" + marketUuid + "/book');
-    expect(html).toContain("Proximo passo no portal");
+    expect(html).toContain("Enviar ordem neste mercado");
   });
 });
