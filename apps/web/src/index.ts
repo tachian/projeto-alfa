@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { webConfig } from "./config.js";
 import { renderHomePage } from "./home-page.js";
 import { renderLoginPage } from "./login-page.js";
+import { renderProfilePage } from "./profile-page.js";
 import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
@@ -115,6 +116,24 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/users/me") {
+    await proxyApiRequest({
+      path: "/users/me",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "PATCH" && pathname === "/api/users/me") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/users/me",
+      method: "PATCH",
+      body,
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -207,28 +226,9 @@ export const handleWebRequest = async (
   if (request.method === "GET" && pathname === "/account/profile") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderProfilePage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Minha conta",
-        title: "Perfil pronto para onboarding e manutencao cadastral.",
-        description:
-          "Esta area vai concentrar cadastro inicial, atualizacao de nome, email e telefone, alem de preparar o caminho para KYC e seguranca da conta.",
-        status: "Proxima etapa: integrar GET /users/me e PATCH /users/me.",
-        authMode: "protected",
-        cards: [
-          {
-            title: "Perfil",
-            description: "Consulta e edicao de nome, email e telefone do usuario.",
-            href: "/account/profile",
-            tone: "accent",
-          },
-          {
-            title: "Seguranca",
-            description: "Espaco futuro para senha, sessoes e validacoes da conta.",
-            href: "/account/profile",
-          },
-        ],
       }),
     );
     return;

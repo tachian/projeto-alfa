@@ -22,6 +22,8 @@ import type { ReconciliationServiceContract } from "./modules/reconciliation/ser
 import { realtimeHub } from "./modules/realtime/hub.js";
 import { buildSettlementRoutes } from "./modules/settlement/routes.js";
 import type { SettlementServiceContract } from "./modules/settlement/service.js";
+import { buildUserRoutes } from "./modules/users/routes.js";
+import type { UserServiceContract } from "./modules/users/service.js";
 import { buildWalletRoutes } from "./modules/wallet/routes.js";
 import type { WalletServiceContract } from "./modules/wallet/service.js";
 import { dependenciesPluginRegistered } from "./plugins/dependencies.js";
@@ -41,6 +43,7 @@ type BuildServerOptions = {
   portfolioService?: PortfolioServiceContract;
   reconciliationService?: ReconciliationServiceContract;
   settlementService?: SettlementServiceContract;
+  userService?: UserServiceContract;
   walletService?: WalletServiceContract;
 };
 
@@ -75,6 +78,7 @@ export const buildServer = async (options: BuildServerOptions = {}) => {
   await server.register(buildPortfolioRoutes(options.portfolioService, options.authService));
   await server.register(buildReconciliationRoutes(options.reconciliationService, options.authService));
   await server.register(buildSettlementRoutes(options.settlementService, options.authService));
+  await server.register(buildUserRoutes(options.userService, options.authService));
   await server.register(buildWalletRoutes(options.walletService, options.authService));
   realtimeHub.attach(server.server);
 

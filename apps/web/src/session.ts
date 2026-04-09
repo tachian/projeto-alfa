@@ -113,6 +113,29 @@ export const renderSessionClientScript = () => `
       response = await execute();
       return response;
     },
+    async fetchJsonWithAuth(url, options = {}, fallbackMessage = "Nao foi possivel concluir a operacao.") {
+      const response = await this.fetchWithAuth(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers ?? {}),
+        },
+      });
+
+      const payloadText = await response.text();
+      const payload = payloadText ? JSON.parse(payloadText) : null;
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          this.clear();
+          throw createProjetoAlfaWebSessionError("unauthenticated", payload?.message ?? "Sua sessao expirou.");
+        }
+
+        throw createProjetoAlfaWebSessionError("request_failed", payload?.message ?? fallbackMessage);
+      }
+
+      return payload;
+    },
     async resolveUser() {
       const accessToken = this.getAccessToken();
 
@@ -120,19 +143,13 @@ export const renderSessionClientScript = () => `
         throw createProjetoAlfaWebSessionError("unauthenticated", "Sessao ausente.");
       }
 
-      const response = await this.fetchWithAuth("/api/auth/me", {
+      const payload = await this.fetchJsonWithAuth("/api/auth/me", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      }, "Nao foi possivel validar a sessao.");
 
-      const payloadText = await response.text();
-      const payload = payloadText ? JSON.parse(payloadText) : null;
-
-      if (!response.ok || !payload?.user) {
+      if (!payload?.user) {
         this.clear();
-        throw createProjetoAlfaWebSessionError("unauthenticated", payload?.message ?? "Nao foi possivel validar a sessao.");
+        throw createProjetoAlfaWebSessionError("unauthenticated", "Nao foi possivel validar a sessao.");
       }
 
       this.updateUser(payload.user);

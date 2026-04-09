@@ -242,4 +242,78 @@ describe("web auth flow e2e", () => {
       message: "Refresh token invalido.",
     });
   });
+
+  it("forwards profile requests to GET and PATCH /users/me", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: {
+              uuid: "user-uuid",
+              name: "Usuario Exemplo",
+              email: "user@example.com",
+              phone: "+5585999999999",
+              role: "user",
+              status: "active",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            user: {
+              uuid: "user-uuid",
+              name: "Usuario Atualizado",
+              email: "novo@example.com",
+              phone: "+5585888888888",
+              role: "user",
+              status: "active",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const profileResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/users/me",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(profileResponse.status).toBe(200);
+    expect(profileResponse.json()).toMatchObject({
+      user: {
+        name: "Usuario Exemplo",
+      },
+    });
+
+    const updateResponse = await invokeWebRoute({
+      method: "PATCH",
+      url: "/api/users/me",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+      },
+      body: {
+        name: "Usuario Atualizado",
+        email: "novo@example.com",
+        phone: "+5585888888888",
+      },
+    });
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateResponse.json()).toMatchObject({
+      user: {
+        name: "Usuario Atualizado",
+        email: "novo@example.com",
+      },
+    });
+  });
 });
