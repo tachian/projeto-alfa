@@ -15,6 +15,7 @@ describe("renderProfilePage", () => {
     expect(html).toContain('id="profile-email"');
     expect(html).toContain('id="profile-phone"');
     expect(html).toContain("/api/users/me");
+    expect(html).toContain('/account/verification');
     expect(html).toContain("window.ProjetoAlfaWebSession");
     expect(html).toContain("Informe um telefone valido com DDD.");
   });

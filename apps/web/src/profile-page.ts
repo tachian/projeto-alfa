@@ -190,6 +190,31 @@ export const renderProfilePage = (input: {
       .status[data-tone="success"] { color: var(--success); }
       .status[data-tone="danger"] { color: var(--danger); }
 
+      .account-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .account-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        color: var(--ink);
+        background: rgba(15, 23, 42, 0.06);
+      }
+
+      .account-link.primary {
+        color: white;
+        background: linear-gradient(135deg, var(--accent), #0f766e);
+      }
+
       @media (max-width: 900px) {
         .hero-grid,
         .field-grid {
@@ -224,6 +249,11 @@ export const renderProfilePage = (input: {
         <div class="eyebrow">Perfil</div>
         <h2>Manutencao cadastral</h2>
         <p>Os dados abaixo sao os mesmos usados pelo fluxo de autenticacao e vao sustentar onboarding, notificacoes e verificacoes futuras.</p>
+
+        <div class="account-links">
+          <a class="account-link primary" href="/account/verification">Concluir verificacao</a>
+          <a class="account-link" href="/portfolio/positions">Ver portfolio</a>
+        </div>
 
         <form id="profile-form">
           <div class="field-grid">

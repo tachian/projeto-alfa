@@ -128,6 +128,14 @@ describe("web portal routes", () => {
     expect(settlementsResponse.text()).toContain("Historico de liquidacoes");
   });
 
+  it("serves the account verification page", async () => {
+    const response = await invokeWebRoute("/account/verification");
+
+    expect(response.status).toBe(200);
+    expect(response.text()).toContain("Conclua sua verificacao para negociar.");
+    expect(response.text()).toContain('id="verification-form"');
+  });
+
   it("forwards public market catalog requests to the api", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
       new Response(JSON.stringify({ items: [] }), {

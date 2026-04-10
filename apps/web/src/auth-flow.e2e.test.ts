@@ -317,6 +317,120 @@ describe("web auth flow e2e", () => {
     });
   });
 
+  it("forwards kyc verification routes to the existing kyc endpoints", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            verification: {
+              uuid: "verification-uuid",
+              status: "approved",
+              amlStatus: "clear",
+              riskLevel: "low",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            verification: {
+              uuid: "verification-uuid",
+              status: "approved",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "approved",
+            requirements: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const createResponse = await invokeWebRoute({
+      method: "POST",
+      url: "/api/kyc/submissions",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+      },
+      body: {
+        fullName: "Usuario Exemplo",
+        documentType: "cpf",
+        documentNumber: "12345678901",
+        countryCode: "BR",
+        birthDate: "1990-01-01",
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.json()).toMatchObject({
+      verification: {
+        uuid: "verification-uuid",
+      },
+    });
+
+    const latestResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/kyc/submissions/latest",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(latestResponse.status).toBe(200);
+    expect(latestResponse.json()).toMatchObject({
+      verification: {
+        status: "approved",
+      },
+    });
+
+    const requirementsResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/kyc/requirements",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(requirementsResponse.status).toBe(200);
+    expect(requirementsResponse.json()).toMatchObject({
+      status: "approved",
+      requirements: [],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/kyc/submissions", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/kyc/submissions/latest", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/kyc/requirements", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
+
   it("forwards order creation, listing and cancellation to the existing trading endpoints", async () => {
     const orderUuid = "11111111-1111-1111-1111-111111111111";
     const marketUuid = "22222222-2222-2222-2222-222222222222";

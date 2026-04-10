@@ -518,7 +518,12 @@ export const renderMarketDetailPage = (input: {
               return;
             }
 
-            setTradeStatus(error?.message || "Nao foi possivel enviar a ordem.", "danger");
+            const message = error?.message || "Nao foi possivel enviar a ordem.";
+            if (message.includes("A conta precisa estar ativa")) {
+              setTradeStatus(message + " Conclua a verificacao em /account/verification.", "danger");
+            } else {
+              setTradeStatus(message, "danger");
+            }
           } finally {
             tradeSubmitButton.disabled = false;
           }

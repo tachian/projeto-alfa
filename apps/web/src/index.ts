@@ -11,6 +11,7 @@ import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
 import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
 import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
 import { renderProfilePage } from "./profile-page.js";
+import { renderVerificationPage } from "./verification-page.js";
 import { renderRegisterPage } from "./register-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
@@ -136,6 +137,32 @@ export const handleWebRequest = async (
       path: "/users/me",
       method: "PATCH",
       body,
+    });
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/api/kyc/submissions") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/kyc/submissions",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/kyc/submissions/latest") {
+    await proxyApiRequest({
+      path: "/kyc/submissions/latest",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/kyc/requirements") {
+    await proxyApiRequest({
+      path: "/kyc/requirements",
+      method: "GET",
     });
     return;
   }
@@ -334,6 +361,17 @@ export const handleWebRequest = async (
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderProfilePage({
+        appName: webConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/account/verification") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderVerificationPage({
         appName: webConfig.APP_NAME,
         pathname,
       }),
