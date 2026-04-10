@@ -4,6 +4,7 @@ Monorepo inicial da plataforma com tres servicos principais:
 
 - `apps/api`: API principal e fronteira publica do produto
 - `apps/admin`: painel administrativo e ferramentas operacionais
+- `apps/web`: portal do usuario comum para cadastro, mercados, ordens e portfolio
 - `apps/worker`: jobs assíncronos, integrações e processamento de fundo
 
 ## Estrutura
@@ -12,6 +13,7 @@ Monorepo inicial da plataforma com tres servicos principais:
 apps/
   admin/
   api/
+  web/
   worker/
 packages/
   config/
@@ -41,6 +43,15 @@ make admin-dev
 ```
 
 Depois acesse `http://localhost:3000/login`.
+
+Para trabalhar com o portal do usuario comum:
+
+```bash
+make api-dev
+make web-dev
+```
+
+Depois acesse `http://localhost:3002/`.
 
 Pre-requisitos:
 
@@ -77,6 +88,7 @@ Comandos principais:
 - `make db-migrate-dev`: executa `prisma migrate dev` no `api`
 - `make api-dev`: sobe apenas o `api`
 - `make admin-dev`: sobe apenas o `admin`
+- `make web-dev`: sobe apenas o portal `web`
 - `make worker-dev`: sobe apenas o `worker`
 - `make dev`: sobe todos os apps do monorepo
 - `make lint`: roda ESLint
@@ -120,6 +132,12 @@ Scripts por app:
 - `pnpm --filter @projeto-alfa/admin test`
 - `pnpm --filter @projeto-alfa/admin typecheck`
 - `pnpm --filter @projeto-alfa/admin clean`
+- `pnpm --filter @projeto-alfa/web dev`
+- `pnpm --filter @projeto-alfa/web build`
+- `pnpm --filter @projeto-alfa/web lint`
+- `pnpm --filter @projeto-alfa/web test`
+- `pnpm --filter @projeto-alfa/web typecheck`
+- `pnpm --filter @projeto-alfa/web clean`
 - `pnpm --filter @projeto-alfa/worker dev`
 - `pnpm --filter @projeto-alfa/worker build`
 - `pnpm --filter @projeto-alfa/worker lint`
@@ -162,6 +180,7 @@ Arquivos de ambiente de referencia:
 - raiz: [.env.example](/home/tachian/work/projeto-alfa/.env.example)
 - `api`: [apps/api/.env.example](/home/tachian/work/projeto-alfa/apps/api/.env.example)
 - `admin`: [apps/admin/.env.example](/home/tachian/work/projeto-alfa/apps/admin/.env.example)
+- `web`: [apps/web/.env.example](/home/tachian/work/projeto-alfa/apps/web/.env.example)
 - `worker`: [apps/worker/.env.example](/home/tachian/work/projeto-alfa/apps/worker/.env.example)
 
 Arquivos `.env` locais criados:
@@ -169,6 +188,7 @@ Arquivos `.env` locais criados:
 - raiz: [.env](/home/tachian/work/projeto-alfa/.env)
 - `api`: [apps/api/.env](/home/tachian/work/projeto-alfa/apps/api/.env)
 - `admin`: [apps/admin/.env](/home/tachian/work/projeto-alfa/apps/admin/.env)
+- `web`: [apps/web/.env](/home/tachian/work/projeto-alfa/apps/web/.env)
 - `worker`: [apps/worker/.env](/home/tachian/work/projeto-alfa/apps/worker/.env)
 
 Autenticacao atual do `admin`:
@@ -180,6 +200,16 @@ Autenticacao atual do `admin`:
 - o painel usa sessao no navegador e nao exige colar JWT manualmente
 - rotas protegidas do `admin` redirecionam para `/login` quando nao houver sessao valida
 - usuarios autenticados sem `role=admin` veem um estado de `Acesso restrito`, com acoes para sair ou trocar de conta
+
+Autenticacao atual do `web`:
+
+- `POST /auth/register` para criar conta com `name`, `email`, `phone` e `password`
+- `POST /auth/login` para iniciar sessao do usuario comum
+- `GET /auth/me` para validar a sessao nas rotas protegidas
+- `POST /auth/refresh` para renovar a sessao automaticamente
+- o `web` usa sessao local no navegador e reaproveita os mesmos endpoints de auth do `api`
+- rotas protegidas do `web` preservam `returnTo` ao redirecionar para `/login`
+- depois do login, o portal volta o usuario para a pagina originalmente solicitada quando houver `returnTo`
 
 Configuracoes relevantes do `api` para KYC/AML:
 
@@ -193,6 +223,7 @@ Endpoints para apps locais:
 - `RabbitMQ`: `amqp://admin:admin@localhost:5672`
 - `Prometheus`: `http://localhost:9090`
 - `Grafana`: `http://localhost:3001`
+- `Web portal`: `http://localhost:3002`
 
 ## Validacao
 
@@ -212,6 +243,12 @@ Subir o `admin`:
 
 ```bash
 make admin-dev
+```
+
+Subir o portal `web`:
+
+```bash
+make web-dev
 ```
 
 Verificar o healthcheck:
@@ -264,6 +301,50 @@ Comportamentos importantes:
 - a tela `Portfolio > Posicoes` aceita filtro por `marketUuid` e linka de volta para a ficha do mercado
 - a tela `Portfolio > PnL` muda o destaque do card principal conforme o valor total da carteira
 - a tela `Portfolio > Liquidacoes` resume vitorias, derrotas e payout agregado no topo
+
+## Fluxo do Portal
+
+Onboarding recomendado:
+
+1. suba `api` e `web`
+2. abra `http://localhost:3002/register`
+3. crie uma conta com `nome`, `email`, `telefone` e `senha`
+4. depois do cadastro, o portal inicia a sessao do usuario
+5. o login reutiliza `POST /auth/login`, `GET /auth/me` e `POST /auth/refresh`
+6. rotas protegidas redirecionam para `/login` com `returnTo` quando a sessao estiver ausente
+7. quando o access token expira, o portal tenta renovar a sessao automaticamente
+
+Areas do portal:
+
+- `Home`: apresentacao do produto e ponto de entrada do usuario comum
+- `Mercados`: catalogo publico e detalhe do contrato com book e trades recentes
+- `Ordens`: trilha autenticada para listar e cancelar ordens do usuario
+- `Portfolio`: posicoes, PnL e historico de liquidacoes
+- `Minha conta`: manutencao cadastral do perfil
+
+Fluxo operacional atual do `web`:
+
+1. criar conta ou entrar no portal
+2. explorar mercados em `Mercados`
+3. abrir um contrato em `Mercados > Detalhe`
+4. enviar ordem diretamente na pagina do mercado
+5. acompanhar ordens em `Ordens`
+6. consultar exposicao em `Portfolio > Posicoes`
+7. consultar resultado consolidado em `Portfolio > PnL`
+8. consultar settlements em `Portfolio > Liquidacoes`
+9. atualizar nome, email e telefone em `Minha conta`
+
+Comportamentos importantes do portal:
+
+- o cadastro valida `nome`, `email`, `telefone` e `senha` no cliente antes de chamar a API
+- a pagina de mercado valida `preco` e `quantidade` antes de enviar ordem
+- o envio de ordem fica bloqueado quando o mercado nao estiver em status `open`
+- a tela `Ordens` valida filtros de `marketUuid` e `limit` antes de consultar a API
+- a tela `Portfolio > Posicoes` resume quantidade de posicoes, mercados, maior exposicao e PnL total
+- a tela `Portfolio > PnL` destaca o card principal conforme positivo, negativo ou neutro
+- a tela `Portfolio > Liquidacoes` resume quantidade, vitorias, derrotas e payout total
+- o botao `Sair` limpa a sessao local e redireciona para `/login`
+- o portal possui cobertura e2e da jornada `cadastro -> login -> perfil -> mercado -> ordem -> portfolio`
 
 Canal realtime do `api`:
 
