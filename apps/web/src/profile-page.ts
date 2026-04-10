@@ -1,5 +1,5 @@
 import { escapeHtml } from "./html.js";
-import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderProfilePage = (input: {
@@ -283,6 +283,7 @@ export const renderProfilePage = (input: {
 
     <script>
       ${renderSessionClientScript()}
+      ${renderWalletHeaderScript()}
 
       const sessionClient = window.ProjetoAlfaWebSession;
       const statusNode = document.getElementById("profile-status");

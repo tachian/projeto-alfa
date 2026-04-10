@@ -1,5 +1,5 @@
 import { escapeHtml } from "./html.js";
-import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderMarketDetailPage = (input: {
@@ -324,6 +324,7 @@ export const renderMarketDetailPage = (input: {
 
       <script>
         ${renderSessionClientScript()}
+        ${renderWalletHeaderScript()}
 
         const marketUuid = ${JSON.stringify(input.marketUuid)};
         const sessionClient = window.ProjetoAlfaWebSession;

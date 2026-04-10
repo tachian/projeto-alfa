@@ -13,6 +13,7 @@ import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js"
 import { renderProfilePage } from "./profile-page.js";
 import { renderVerificationPage } from "./verification-page.js";
 import { renderRegisterPage } from "./register-page.js";
+import { renderWalletPage } from "./wallet-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
 const readJsonBody = async (request: IncomingMessage) => {
@@ -253,6 +254,22 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/wallet/balance") {
+    await proxyApiRequest({
+      path: `/wallet/balance${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/wallet/entries") {
+    await proxyApiRequest({
+      path: `/wallet/entries${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -282,6 +299,17 @@ export const handleWebRequest = async (
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
       renderOrdersPage({
+        appName: webConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/wallet") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderWalletPage({
         appName: webConfig.APP_NAME,
         pathname,
       }),

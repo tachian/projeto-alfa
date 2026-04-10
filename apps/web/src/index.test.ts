@@ -108,6 +108,14 @@ describe("web portal routes", () => {
     expect(response.text()).toContain('id="orders-filters-form"');
   });
 
+  it("serves the authenticated wallet page", async () => {
+    const response = await invokeWebRoute("/wallet");
+
+    expect(response.status).toBe(200);
+    expect(response.text()).toContain("Saldo, reserva e extrato em uma tela so.");
+    expect(response.text()).toContain('id="wallet-entries"');
+  });
+
   it("serves the portfolio workspace and subpages", async () => {
     const workspaceResponse = await invokeWebRoute("/portfolio");
     expect(workspaceResponse.status).toBe(200);
@@ -159,6 +167,67 @@ describe("web portal routes", () => {
       new URL("/markets?status=open", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
+      }),
+    );
+  });
+
+  it("forwards wallet requests to the api", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ balance: { total: "100.00", available: "80.00", reserved: "20.00", currency: "BRL" } }), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ entries: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const balanceResponse = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "GET",
+      url: "/api/wallet/balance",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    }) as never, balanceResponse);
+
+    expect(balanceResponse.statusCode).toBe(200);
+
+    const entriesResponse = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "GET",
+      url: "/api/wallet/entries?limit=100",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    }) as never, entriesResponse);
+
+    expect(entriesResponse.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/wallet/balance", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/wallet/entries?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
       }),
     );
   });

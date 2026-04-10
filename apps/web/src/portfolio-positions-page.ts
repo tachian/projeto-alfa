@@ -1,5 +1,5 @@
 import { escapeHtml } from "./html.js";
-import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderPortfolioPositionsPage = (input: {
@@ -266,6 +266,7 @@ export const renderPortfolioPositionsPage = (input: {
 
     <script>
       ${renderSessionClientScript()}
+      ${renderWalletHeaderScript()}
 
       const session = window.ProjetoAlfaWebSession;
       const identityEmail = document.getElementById("identity-email");

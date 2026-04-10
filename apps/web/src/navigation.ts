@@ -3,6 +3,7 @@ import { escapeHtml } from "./html.js";
 export type WebNavSection =
   | "home"
   | "markets"
+  | "wallet"
   | "orders"
   | "portfolio"
   | "account"
@@ -21,6 +22,7 @@ const PUBLIC_ITEMS: NavItem[] = [
 ];
 
 const ACCESS_ITEMS: NavItem[] = [
+  { href: "/wallet", label: "Carteira", section: "wallet" },
   { href: "/orders", label: "Ordens", section: "orders" },
   { href: "/portfolio", label: "Portfolio", section: "portfolio" },
   { href: "/account/profile", label: "Minha conta", section: "account" },
@@ -52,6 +54,10 @@ export const resolveWebNavSection = (pathname: string): WebNavSection => {
     return "orders";
   }
 
+  if (pathname.startsWith("/wallet")) {
+    return "wallet";
+  }
+
   if (pathname.startsWith("/portfolio")) {
     return "portfolio";
   }
@@ -70,7 +76,7 @@ export const resolveWebNavSection = (pathname: string): WebNavSection => {
 export const renderWebChromeStyles = () => `
   .topbar {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(240px, 0.85fr) auto;
     gap: 18px;
     align-items: center;
     margin-bottom: 24px;
@@ -155,6 +161,39 @@ export const renderWebChromeStyles = () => `
     background: linear-gradient(135deg, #0369a1, #0f766e);
   }
 
+  .wallet-summary {
+    padding: 14px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+    text-decoration: none;
+    color: #0f172a;
+  }
+
+  .wallet-summary[hidden] {
+    display: none !important;
+  }
+
+  .wallet-summary-label {
+    color: #64748b;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .wallet-summary-value {
+    margin-top: 8px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  .wallet-summary-meta {
+    margin-top: 6px;
+    color: #475569;
+    font-size: 0.88rem;
+  }
+
   @media (max-width: 1040px) {
     .topbar {
       grid-template-columns: 1fr;
@@ -186,9 +225,71 @@ export const renderWebNavigation = (input: {
         ${renderLinks(ACCESS_ITEMS, activeSection)}
       </div>
 
+      <a id="wallet-summary" class="wallet-summary" href="/wallet" hidden>
+        <div class="wallet-summary-label">Carteira</div>
+        <div id="wallet-summary-value" class="wallet-summary-value">Saldo indisponivel</div>
+        <div id="wallet-summary-meta" class="wallet-summary-meta">Entre para consultar seu saldo.</div>
+      </a>
+
       <div class="nav-cta" aria-label="Acesso e onboarding">
         ${renderLinks(AUTH_ITEMS, activeSection)}
       </div>
     </header>
   `;
 };
+
+export const renderWalletHeaderScript = () => `
+  const walletSummary = document.getElementById("wallet-summary");
+  const walletSummaryValue = document.getElementById("wallet-summary-value");
+  const walletSummaryMeta = document.getElementById("wallet-summary-meta");
+
+  const formatWalletAmount = (value, currency) => {
+    const amount = Number(value || 0);
+    const normalized = Number.isFinite(amount) ? amount.toFixed(2) : String(value || "0.00");
+    return currency ? normalized + " " + currency : normalized;
+  };
+
+  const syncWalletHeader = async () => {
+    if (!walletSummary || !window.ProjetoAlfaWebSession?.get) {
+      return;
+    }
+
+    const session = window.ProjetoAlfaWebSession.get();
+
+    if (!session?.tokens?.accessToken) {
+      walletSummary.hidden = true;
+      return;
+    }
+
+    try {
+      const payload = await window.ProjetoAlfaWebSession.fetchJsonWithAuth(
+        "/api/wallet/balance",
+        { method: "GET" },
+        "Nao foi possivel carregar seu saldo.",
+      );
+      const balance = payload?.balance;
+
+      if (!balance) {
+        walletSummary.hidden = true;
+        return;
+      }
+
+      walletSummary.hidden = false;
+      walletSummaryValue.textContent = formatWalletAmount(balance.total, balance.currency);
+      walletSummaryMeta.textContent =
+        "Disponivel " + formatWalletAmount(balance.available, balance.currency) +
+        " • Reservado " + formatWalletAmount(balance.reserved, balance.currency);
+    } catch (error) {
+      if (error?.code === "unauthenticated") {
+        walletSummary.hidden = true;
+        return;
+      }
+
+      walletSummary.hidden = false;
+      walletSummaryValue.textContent = "Saldo indisponivel";
+      walletSummaryMeta.textContent = error?.message || "Nao foi possivel atualizar a carteira no momento.";
+    }
+  };
+
+  syncWalletHeader();
+`;

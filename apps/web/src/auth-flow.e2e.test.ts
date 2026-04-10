@@ -695,4 +695,82 @@ describe("web auth flow e2e", () => {
       }),
     );
   });
+
+  it("forwards wallet balance and statement requests to the existing wallet endpoints", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            balance: {
+              currency: "BRL",
+              available: "80.00",
+              reserved: "20.00",
+              total: "100.00",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            entries: [],
+            meta: {
+              count: 0,
+              limit: 100,
+              currency: "BRL",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const balanceResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/wallet/balance",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(balanceResponse.status).toBe(200);
+    expect(balanceResponse.json()).toMatchObject({
+      balance: {
+        total: "100.00",
+      },
+    });
+
+    const entriesResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/wallet/entries?limit=100",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(entriesResponse.status).toBe(200);
+    expect(entriesResponse.json()).toMatchObject({
+      meta: {
+        limit: 100,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/wallet/balance", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/wallet/entries?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+  });
 });

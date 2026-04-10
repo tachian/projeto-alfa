@@ -1,5 +1,5 @@
 import { escapeHtml } from "./html.js";
-import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderOrdersPage = (input: {
@@ -346,6 +346,7 @@ export const renderOrdersPage = (input: {
 
     <script>
       ${renderSessionClientScript()}
+      ${renderWalletHeaderScript()}
 
       const sessionClient = window.ProjetoAlfaWebSession;
       const identityName = document.getElementById("identity-name");
