@@ -275,6 +275,29 @@ export const renderProfilePage = (input: {
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
       };
 
+      const isValidEmail = (value) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+      const normalizePhone = (value) => value.replace(/\\D/g, "");
+
+      const validateProfile = () => {
+        const nextName = nameInput.value.trim();
+        const nextEmail = emailInput.value.trim();
+        const nextPhone = phoneInput.value.trim();
+
+        if (nextName.length < 3) {
+          return "Informe um nome com pelo menos 3 caracteres.";
+        }
+
+        if (!isValidEmail(nextEmail)) {
+          return "Informe um email valido para continuar.";
+        }
+
+        if (normalizePhone(nextPhone).length < 10) {
+          return "Informe um telefone valido com DDD.";
+        }
+
+        return "";
+      };
+
       const loadProfile = async () => {
         try {
           const payload = await sessionClient.fetchJsonWithAuth("/api/users/me", {
@@ -308,6 +331,14 @@ export const renderProfilePage = (input: {
         event.preventDefault();
         submitButton.disabled = true;
         setStatus("Salvando suas alteracoes...");
+
+        const validationMessage = validateProfile();
+
+        if (validationMessage) {
+          submitButton.disabled = false;
+          setStatus(validationMessage, "danger");
+          return;
+        }
 
         try {
           const payload = await sessionClient.fetchJsonWithAuth("/api/users/me", {

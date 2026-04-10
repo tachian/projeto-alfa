@@ -17,5 +17,6 @@ describe("renderMarketDetailPage", () => {
     expect(html).toContain("/api/orders");
     expect(html).toContain('/api/markets/" + marketUuid + "/book');
     expect(html).toContain("Enviar ordem neste mercado");
+    expect(html).toContain("Preco invalido. Use um inteiro entre 1 e 99.");
   });
 });

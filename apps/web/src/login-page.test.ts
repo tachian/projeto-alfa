@@ -15,5 +15,6 @@ describe("renderLoginPage", () => {
     expect(html).toContain("Email ou senha invalidos");
     expect(html).toContain("returnTo");
     expect(html).toContain("Faca login para acessar a area solicitada do portal.");
+    expect(html).toContain("Informe um email valido para continuar.");
   });
 });

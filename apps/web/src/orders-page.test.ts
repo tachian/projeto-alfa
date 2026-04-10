@@ -14,5 +14,6 @@ describe("renderOrdersPage", () => {
     expect(html).toContain('id="orders-table"');
     expect(html).toContain("/api/orders");
     expect(html).toContain("Cancelar");
+    expect(html).toContain("Filtro de mercado invalido. Informe um UUID valido.");
   });
 });

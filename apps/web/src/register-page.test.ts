@@ -15,5 +15,7 @@ describe("renderRegisterPage", () => {
     expect(html).toContain('id="password"');
     expect(html).toContain("/api/auth/register");
     expect(html).toContain("returnTo");
+    expect(html).toContain("A senha deve ter pelo menos 8 caracteres.");
+    expect(html).toContain("Informe um telefone valido com DDD.");
   });
 });

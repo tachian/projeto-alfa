@@ -378,6 +378,8 @@ export const renderOrdersPage = (input: {
         limitInput.value = params.get("limit") || "20";
       };
 
+      const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
       const buildOrdersQuery = () => {
         const params = new URLSearchParams();
         const marketUuid = marketUuidInput.value.trim();
@@ -395,6 +397,21 @@ export const renderOrdersPage = (input: {
         }
 
         return params;
+      };
+
+      const validateFilters = () => {
+        const marketUuid = marketUuidInput.value.trim();
+        const limit = Number(limitInput.value);
+
+        if (marketUuid && !isUuid(marketUuid)) {
+          return "Filtro de mercado invalido. Informe um UUID valido.";
+        }
+
+        if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+          return "O limite deve ser um numero inteiro entre 1 e 100.";
+        }
+
+        return "";
       };
 
       const formatTimestamp = (value) => {
@@ -512,6 +529,13 @@ export const renderOrdersPage = (input: {
 
       filtersForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+
+        const validationMessage = validateFilters();
+        if (validationMessage) {
+          setStatus(validationMessage, "danger");
+          return;
+        }
+
         await loadOrders();
       });
 

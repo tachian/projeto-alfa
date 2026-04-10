@@ -266,6 +266,33 @@ export const renderAuthPage = (input: {
         return ${JSON.stringify(redirectOnSuccess)};
       };
 
+      const isValidEmail = (value) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value);
+      const normalizePhone = (value) => value.replace(/\\D/g, "");
+
+      const validatePayload = (payload) => {
+        if (${isRegister ? "true" : "false"}) {
+          if (!payload.name || payload.name.length < 3) {
+            return "Informe um nome com pelo menos 3 caracteres.";
+          }
+
+          if (!payload.phone || normalizePhone(payload.phone).length < 10) {
+            return "Informe um telefone valido com DDD.";
+          }
+
+          if (!payload.password || payload.password.length < 8) {
+            return "A senha deve ter pelo menos 8 caracteres.";
+          }
+        } else if (!payload.password) {
+          return "Informe sua senha para continuar.";
+        }
+
+        if (!payload.email || !isValidEmail(payload.email)) {
+          return "Informe um email valido para continuar.";
+        }
+
+        return "";
+      };
+
       if (reason === "expired") {
         setStatus("Sua sessao expirou. Entre novamente para continuar.", "danger");
       } else if (reason === "protected") {
@@ -286,6 +313,14 @@ export const renderAuthPage = (input: {
           ${isRegister ? 'phone: document.getElementById("phone").value.trim(),' : ""}
           password: document.getElementById("password").value,
         };
+
+        const validationMessage = validatePayload(payload);
+
+        if (validationMessage) {
+          submitButton.disabled = false;
+          setStatus(validationMessage, "danger");
+          return;
+        }
 
         try {
           const response = await fetch(${JSON.stringify(endpoint)}, {

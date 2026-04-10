@@ -342,6 +342,7 @@ export const renderMarketDetailPage = (input: {
         const tradeOutcomeInput = document.getElementById("trade-outcome");
         const tradePriceInput = document.getElementById("trade-price");
         const tradeQuantityInput = document.getElementById("trade-quantity");
+        let marketIsTradable = true;
 
         const setStatus = (message, tone = "default") => {
           statusNode.dataset.tone = tone;
@@ -351,6 +352,29 @@ export const renderMarketDetailPage = (input: {
         const setTradeStatus = (message, tone = "default") => {
           tradeStatusNode.dataset.tone = tone;
           tradeStatusNode.textContent = message;
+        };
+
+        const setTradeAvailability = (isTradable, message) => {
+          marketIsTradable = isTradable;
+          tradeSubmitButton.disabled = !isTradable;
+          if (message) {
+            setTradeStatus(message, isTradable ? "default" : "danger");
+          }
+        };
+
+        const validateTradeForm = () => {
+          const price = Number(tradePriceInput.value);
+          const quantity = Number(tradeQuantityInput.value);
+
+          if (!Number.isInteger(price) || price < 1 || price > 99) {
+            return "Preco invalido. Use um inteiro entre 1 e 99.";
+          }
+
+          if (!Number.isInteger(quantity) || quantity < 1) {
+            return "Quantidade invalida. Use um inteiro maior ou igual a 1.";
+          }
+
+          return "";
         };
 
         const renderBook = (levels) => {
@@ -442,18 +466,35 @@ export const renderMarketDetailPage = (input: {
             tradesNode.innerHTML = tradesResponse.ok ? renderTrades(tradesPayload.items || []) : "<p>Nao foi possivel carregar as ultimas execucoes.</p>";
 
             setStatus("Mercado carregado com sucesso.");
-            setTradeStatus("Sessao sera validada ao enviar a ordem. Use este formulario para operar no contexto do mercado.");
+            if (market.status === "open") {
+              setTradeAvailability(true, "Sessao sera validada ao enviar a ordem. Use este formulario para operar no contexto do mercado.");
+            } else {
+              setTradeAvailability(false, "Este mercado esta em status " + market.status + " e nao aceita novas ordens agora.");
+            }
           } catch {
             titleNode.textContent = "Mercado indisponivel";
             setStatus("Nao foi possivel carregar o detalhe deste mercado.", "danger");
-            setTradeStatus("O mercado nao pode ser operado enquanto os dados estiverem indisponiveis.", "danger");
+            setTradeAvailability(false, "O mercado nao pode ser operado enquanto os dados estiverem indisponiveis.");
           }
         };
 
         tradeForm.addEventListener("submit", async (event) => {
           event.preventDefault();
+          if (!marketIsTradable) {
+            setTradeStatus("Este mercado nao aceita novas ordens no momento.", "danger");
+            return;
+          }
+
           tradeSubmitButton.disabled = true;
           setTradeStatus("Validando sessao e enviando ordem...");
+
+          const validationMessage = validateTradeForm();
+
+          if (validationMessage) {
+            tradeSubmitButton.disabled = false;
+            setTradeStatus(validationMessage, "danger");
+            return;
+          }
 
           try {
             await sessionClient.resolveUser();
