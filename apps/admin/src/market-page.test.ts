@@ -20,6 +20,8 @@ describe("renderMarketPage", () => {
     expect(html).toContain("Historico de resolucao");
     expect(html).toContain("Guiar resolucao e liquidacao");
     expect(html).toContain("Executar ultimo run");
+    expect(html).toContain('<select name="status" required>');
+    expect(html).toContain('<option value="resolved">resolved</option>');
     expect(html).toContain("window.ProjetoAlfaSession");
     expect(html).toContain("/api/auth/me");
     expect(html).toContain("Validando sessao do admin");

@@ -6,9 +6,21 @@ export const renderMarketPage = (input: {
   appName: string;
   marketUuid: string;
 }) => {
+  const marketStatusOptions = [
+    "draft",
+    "open",
+    "suspended",
+    "closed",
+    "resolving",
+    "resolved",
+    "cancelled",
+  ];
   const title = `Mercado ${input.marketUuid} | ${input.appName}`;
   const safeMarketUuid = escapeHtml(input.marketUuid);
   const safeAppName = escapeHtml(input.appName);
+  const statusOptionsMarkup = marketStatusOptions
+    .map((status) => `<option value="${status}">${status}</option>`)
+    .join("");
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -704,7 +716,7 @@ export const renderMarketPage = (input: {
                   <label class="field-label">Categoria<input name="category" required /></label>
                 </div>
                 <div class="form-grid two">
-                  <label class="field-label">Status<input name="status" required /></label>
+                  <label class="field-label">Status<select name="status" required>${statusOptionsMarkup}</select></label>
                   <label class="field-label">Tipo<input name="outcomeType" required /></label>
                 </div>
                 <div class="form-grid two">
