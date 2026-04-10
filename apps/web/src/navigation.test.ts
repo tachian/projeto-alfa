@@ -7,6 +7,7 @@ describe("web navigation", () => {
     expect(resolveWebNavSection("/")).toBe("home");
     expect(resolveWebNavSection("/markets")).toBe("markets");
     expect(resolveWebNavSection("/wallet")).toBe("wallet");
+    expect(resolveWebNavSection("/payments")).toBe("payments");
     expect(resolveWebNavSection("/orders")).toBe("orders");
     expect(resolveWebNavSection("/portfolio")).toBe("portfolio");
     expect(resolveWebNavSection("/account/profile")).toBe("account");
@@ -24,6 +25,7 @@ describe("web navigation", () => {
     expect(html).toContain("Explorar");
     expect(html).toContain('href="/markets" aria-current="page"');
     expect(html).toContain('href="/wallet"');
+    expect(html).toContain('href="/payments"');
     expect(html).toContain('href="/orders"');
     expect(html).toContain('href="/account/profile"');
     expect(html).toContain('href="/register"');

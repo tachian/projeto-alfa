@@ -4,6 +4,7 @@ export type WebNavSection =
   | "home"
   | "markets"
   | "wallet"
+  | "payments"
   | "orders"
   | "portfolio"
   | "account"
@@ -23,6 +24,7 @@ const PUBLIC_ITEMS: NavItem[] = [
 
 const ACCESS_ITEMS: NavItem[] = [
   { href: "/wallet", label: "Carteira", section: "wallet" },
+  { href: "/payments", label: "Movimentacoes", section: "payments" },
   { href: "/orders", label: "Ordens", section: "orders" },
   { href: "/portfolio", label: "Portfolio", section: "portfolio" },
   { href: "/account/profile", label: "Minha conta", section: "account" },
@@ -56,6 +58,10 @@ export const resolveWebNavSection = (pathname: string): WebNavSection => {
 
   if (pathname.startsWith("/wallet")) {
     return "wallet";
+  }
+
+  if (pathname.startsWith("/payments")) {
+    return "payments";
   }
 
   if (pathname.startsWith("/portfolio")) {

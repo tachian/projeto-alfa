@@ -317,6 +317,131 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/payments") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderWorkspacePage({
+        appName: webConfig.APP_NAME,
+        pathname,
+        eyebrow: "Movimentacoes",
+        title: "Entrada, retirada e historico financeiro em uma trilha propria.",
+        description:
+          "A area de movimentacoes separa cash-in, cash-out e historico de pagamentos da carteira e do trading, preparando o portal para PIX e provedores externos.",
+        status: "Primeira etapa: organizar a navegacao e a linguagem de produto antes de conectar fluxos reais de deposito e saque.",
+        authMode: "protected",
+        cards: [
+          {
+            title: "Depositar",
+            description: "Entrada de recursos para a carteira, preparada para evoluir de fluxo manual para PIX ou provedor externo.",
+            href: "/payments/deposit",
+            tone: "accent",
+          },
+          {
+            title: "Sacar",
+            description: "Solicitacoes de retirada com contexto de saldo disponivel, limites e futura integracao com cash-out real.",
+            href: "/payments/withdraw",
+          },
+          {
+            title: "Historico",
+            description: "Visao unica das movimentacoes financeiras para acompanhar status, metodo e conciliacao do usuario.",
+            href: "/payments/history",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/payments/deposit") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderWorkspacePage({
+        appName: webConfig.APP_NAME,
+        pathname,
+        eyebrow: "Movimentacoes",
+        title: "Deposito preparado para PIX e cash-in futuro.",
+        description:
+          "Esta tela vai concentrar criacao de deposito, instrucoes por metodo e estados assincronos para provedores externos sem acoplar a experiencia ao modo mock.",
+        status: "Proxima etapa: conectar formulario de deposito e instrucoes dinamicas por metodo.",
+        authMode: "protected",
+        cards: [
+          {
+            title: "Voltar para movimentacoes",
+            description: "Retorne ao indice da area financeira do portal.",
+            href: "/payments",
+            tone: "accent",
+          },
+          {
+            title: "Carteira",
+            description: "Consulte saldo, reservado e extrato atual da conta.",
+            href: "/wallet",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/payments/withdraw") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderWorkspacePage({
+        appName: webConfig.APP_NAME,
+        pathname,
+        eyebrow: "Movimentacoes",
+        title: "Saque com contexto de limites e cash-out futuro.",
+        description:
+          "Esta trilha vai reunir saldo disponivel, validacoes de risco e proximos passos para integracao com parceiros reais de retirada.",
+        status: "Proxima etapa: conectar formulario de saque e feedback de saldo, limites e conta ativa.",
+        authMode: "protected",
+        cards: [
+          {
+            title: "Voltar para movimentacoes",
+            description: "Retorne ao indice da area financeira do portal.",
+            href: "/payments",
+            tone: "accent",
+          },
+          {
+            title: "Carteira",
+            description: "Abra a carteira para verificar o saldo disponivel antes do saque.",
+            href: "/wallet",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/payments/history") {
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(
+      renderWorkspacePage({
+        appName: webConfig.APP_NAME,
+        pathname,
+        eyebrow: "Movimentacoes",
+        title: "Historico financeiro separado da carteira e do trading.",
+        description:
+          "Aqui o usuario vai acompanhar depositos, saques, status e provedores sem misturar conciliacao financeira com ordens e portfolio.",
+        status: "Proxima etapa: integrar depositos e saques existentes em um historico combinado por tipo e status.",
+        authMode: "protected",
+        cards: [
+          {
+            title: "Voltar para movimentacoes",
+            description: "Retorne ao indice da area financeira do portal.",
+            href: "/payments",
+            tone: "accent",
+          },
+          {
+            title: "Carteira",
+            description: "Abra o saldo e o extrato contabio para complementar a leitura do historico.",
+            href: "/wallet",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/portfolio") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(

@@ -116,6 +116,27 @@ describe("web portal routes", () => {
     expect(response.text()).toContain('id="wallet-entries"');
   });
 
+  it("serves the payments workspace and starter routes", async () => {
+    const workspaceResponse = await invokeWebRoute("/payments");
+    expect(workspaceResponse.status).toBe(200);
+    expect(workspaceResponse.text()).toContain("Entrada, retirada e historico financeiro em uma trilha propria.");
+    expect(workspaceResponse.text()).toContain('href="/payments/deposit"');
+    expect(workspaceResponse.text()).toContain('href="/payments/withdraw"');
+    expect(workspaceResponse.text()).toContain('href="/payments/history"');
+
+    const depositResponse = await invokeWebRoute("/payments/deposit");
+    expect(depositResponse.status).toBe(200);
+    expect(depositResponse.text()).toContain("Deposito preparado para PIX e cash-in futuro.");
+
+    const withdrawResponse = await invokeWebRoute("/payments/withdraw");
+    expect(withdrawResponse.status).toBe(200);
+    expect(withdrawResponse.text()).toContain("Saque com contexto de limites e cash-out futuro.");
+
+    const historyResponse = await invokeWebRoute("/payments/history");
+    expect(historyResponse.status).toBe(200);
+    expect(historyResponse.text()).toContain("Historico financeiro separado da carteira e do trading.");
+  });
+
   it("serves the portfolio workspace and subpages", async () => {
     const workspaceResponse = await invokeWebRoute("/portfolio");
     expect(workspaceResponse.status).toBe(200);
