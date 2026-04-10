@@ -234,6 +234,23 @@ Onboarding recomendado:
 6. quando o access token expira, o painel tenta renovar com `POST /auth/refresh`
 7. se o refresh falhar, a sessao local e limpa e o usuario volta para `/login`
 
+Areas do painel:
+
+- `Dashboard`: ponto de entrada com atalhos para as areas operacionais
+- `Mercados`: CRUD administrativo, detalhe do contrato, resolucao e settlement
+- `Trading`: envio de ordens, filtros, cancelamento e acompanhamento operacional
+- `Portfolio`: posicoes, PnL consolidado e historico de liquidacoes
+
+Fluxo operacional atual do `admin`:
+
+1. abrir um mercado em `Mercados`
+2. usar o atalho `Nova ordem neste mercado` ou `Ver ordens deste mercado`
+3. enviar a ordem em `Trading > Nova ordem`
+4. acompanhar a ordem em `Trading > Ordens`
+5. consultar exposicao em `Portfolio > Posicoes`
+6. consultar consolidado em `Portfolio > PnL`
+7. acompanhar settlements em `Portfolio > Liquidacoes`
+
 Comportamentos importantes:
 
 - o painel nao usa mais fluxo manual de colar token
@@ -241,6 +258,12 @@ Comportamentos importantes:
 - o botao `Sair` limpa a sessao local e redireciona para `/login`
 - a opcao `Trocar conta` encerra a sessao atual e leva o usuario de volta ao login para autenticar com outro perfil
 - se a conta nao tiver `role=admin`, o painel mostra `Acesso restrito` em vez de erro generico `403`
+- as paginas protegidas usam a mesma camada de sessao para bootstrap, refresh e autorizacao
+- a tela `Trading > Nova ordem` aceita `marketUuid` por query string e tambem por seletor de mercados abertos
+- a tela `Trading > Ordens` mostra resumo operacional, filtros ativos e feedback depois de criar ou cancelar ordens
+- a tela `Portfolio > Posicoes` aceita filtro por `marketUuid` e linka de volta para a ficha do mercado
+- a tela `Portfolio > PnL` muda o destaque do card principal conforme o valor total da carteira
+- a tela `Portfolio > Liquidacoes` resume vitorias, derrotas e payout agregado no topo
 
 Canal realtime do `api`:
 
@@ -318,6 +341,7 @@ Chamadas disponiveis na collection:
 - `GET /markets`
 - `GET /markets/:marketUuid`
 - `GET /markets/:marketUuid/book`
+- `GET /markets/:marketUuid/trades`
 - `POST /orders`
 - `GET /orders`
 - `POST /orders/:orderUuid/cancel`
@@ -327,11 +351,22 @@ Chamadas disponiveis na collection:
 - `GET /payments/withdrawals`
 - `GET /wallet/balance`
 - `GET /wallet/entries`
+- `GET /portfolio/positions`
+- `GET /portfolio/pnl`
+- `GET /portfolio/settlements`
 - `GET /admin/markets`
 - `GET /admin/markets/:marketUuid`
 - `POST /admin/markets`
 - `PATCH /admin/markets/:marketUuid`
 - `DELETE /admin/markets/:marketUuid`
+- `GET /admin/markets/:marketUuid/resolutions`
+- `POST /admin/markets/:marketUuid/resolutions`
+- `GET /admin/markets/:marketUuid/settlement-runs`
+- `POST /admin/markets/:marketUuid/settlement-runs`
+- `PATCH /admin/settlement-runs/:settlementRunUuid`
+- `POST /admin/settlement-runs/:settlementRunUuid/execute`
+- `GET /admin/audit-logs`
+- `GET /admin/reconciliation/report`
 
 Para `POST /payments/deposits` e `POST /payments/withdrawals`, envie o header `Idempotency-Key` quando quiser garantir que retries nao criem pagamentos duplicados.
 
