@@ -31,6 +31,9 @@ const envSchema = z.object({
   RISK_MAX_GROSS_EXPOSURE_PER_MARKET: z.coerce.number().int().positive().default(5000),
   RISK_MAX_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(10000),
   RISK_MAX_DAILY_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(25000),
+  PAYMENTS_ENABLED_DEPOSIT_METHODS: z.string().default("manual_mock"),
+  PAYMENTS_ENABLED_WITHDRAWAL_METHODS: z.string().default("manual_mock"),
+  PAYMENTS_SUPPORTED_CURRENCIES: z.string().default("USD"),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

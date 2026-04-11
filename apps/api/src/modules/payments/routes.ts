@@ -5,18 +5,24 @@ import type { AuthServiceContract } from "../auth/service.js";
 import { AuthError, AuthService } from "../auth/service.js";
 import { getAuthenticatedUserUuid } from "../auth/authenticated-user.js";
 import { RiskError } from "../risk/service.js";
+import { PaymentError } from "./errors.js";
 import type { PaymentServiceContract } from "./service.js";
-import { PaymentError, PaymentService } from "./service.js";
+import { PaymentService } from "./service.js";
 
 const paymentBodySchema = z.object({
   amount: z.union([z.number(), z.string()]),
   currency: z.string().trim().min(3).max(3).optional(),
+  method: z.string().trim().min(1).max(64).optional(),
   description: z.string().trim().min(1).max(255).optional(),
 });
 
 const paymentListSchema = z.object({
   currency: z.string().trim().min(3).max(3).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
+const paymentMethodsQuerySchema = z.object({
+  type: z.enum(["deposit", "withdrawal"]).optional(),
 });
 
 const getIdempotencyKey = (headers: Record<string, string | string[] | undefined>) => {
@@ -34,6 +40,26 @@ export const buildPaymentRoutes = (
   authService: AuthServiceContract = new AuthService(),
 ): FastifyPluginAsync => {
   return async (fastify) => {
+    fastify.get("/payments/methods", async (request, reply) => {
+      try {
+        const query = paymentMethodsQuerySchema.parse(request.query);
+
+        return await paymentService.listMethods({
+          type: query.type,
+        });
+      } catch (error) {
+        if (error instanceof PaymentError) {
+          reply.code(error.statusCode);
+
+          return {
+            message: error.message,
+          };
+        }
+
+        throw error;
+      }
+    });
+
     fastify.post("/payments/deposits", async (request, reply) => {
       try {
         const body = paymentBodySchema.parse(request.body);
@@ -42,6 +68,7 @@ export const buildPaymentRoutes = (
           userUuid,
           amount: body.amount,
           currency: body.currency,
+          method: body.method,
           description: body.description,
           idempotencyKey: getIdempotencyKey(request.headers as Record<string, string | string[] | undefined>),
         });
@@ -96,6 +123,7 @@ export const buildPaymentRoutes = (
           userUuid,
           amount: body.amount,
           currency: body.currency,
+          method: body.method,
           description: body.description,
           idempotencyKey: getIdempotencyKey(request.headers as Record<string, string | string[] | undefined>),
         });

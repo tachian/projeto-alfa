@@ -20,8 +20,17 @@ import type {
 import { MarketCatalogError } from "../markets/public-service.js";
 import type { CreateOrderInput, ListOrdersInput, ListOrdersResult, OrderRecord, OrderServiceContract } from "../orders/service.js";
 import { OrderError } from "../orders/service.js";
-import type { CreatePaymentInput, ListPaymentsInput, ListPaymentsResult, PaymentRecord, PaymentServiceContract } from "../payments/service.js";
-import { PaymentError } from "../payments/service.js";
+import type {
+  CreatePaymentInput,
+  ListPaymentMethodsInput,
+  ListPaymentMethodsResult,
+  ListPaymentsInput,
+  ListPaymentsResult,
+  PaymentMethodRecord,
+  PaymentRecord,
+  PaymentServiceContract,
+} from "../payments/service.js";
+import { PaymentError } from "../payments/errors.js";
 import type {
   PortfolioPnlSummary,
   PortfolioPositionRecord,
@@ -431,6 +440,65 @@ class InMemoryExchange
         limit: input.limit ?? 50,
         type: input.type,
         currency,
+      },
+    };
+  }
+
+  async listMethods(input: ListPaymentMethodsInput = {}): Promise<ListPaymentMethodsResult> {
+    const allItems = [
+      {
+        key: "manual_mock",
+        type: "deposit",
+        provider: "manual",
+        availability: "enabled",
+        executionModel: "instant_completion",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: false,
+        description: "Metodo local de desenvolvimento que liquida o deposito imediatamente no ledger.",
+      },
+      {
+        key: "pix",
+        type: "deposit",
+        provider: "pix_mock",
+        availability: "planned",
+        executionModel: "async_confirmation",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: true,
+        description: "Fluxo preparado para PIX com confirmacao assincrona por webhook ou conciliacao.",
+      },
+      {
+        key: "manual_mock",
+        type: "withdrawal",
+        provider: "manual",
+        availability: "enabled",
+        executionModel: "instant_completion",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: false,
+        description: "Metodo local de desenvolvimento que liquida o saque imediatamente no ledger.",
+      },
+      {
+        key: "pix_cashout",
+        type: "withdrawal",
+        provider: "pix_mock",
+        availability: "planned",
+        executionModel: "async_confirmation",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: true,
+        description: "Fluxo preparado para cash-out por PIX com confirmacao assincrona do provedor.",
+      },
+    ] satisfies PaymentMethodRecord[];
+
+    const filteredItems = allItems.filter((item) => !input.type || item.type === input.type);
+
+    return {
+      items: filteredItems,
+      meta: {
+        count: filteredItems.length,
+        type: input.type ?? "all",
       },
     };
   }
