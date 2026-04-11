@@ -131,7 +131,8 @@ describe("web portal routes", () => {
 
     const withdrawResponse = await invokeWebRoute("/payments/withdraw");
     expect(withdrawResponse.status).toBe(200);
-    expect(withdrawResponse.text()).toContain("Saque com contexto de limites e cash-out futuro.");
+    expect(withdrawResponse.text()).toContain("Retirada com contexto de saldo e limites atuais.");
+    expect(withdrawResponse.text()).toContain('id="withdraw-form"');
 
     const historyResponse = await invokeWebRoute("/payments/history");
     expect(historyResponse.status).toBe(200);
@@ -300,6 +301,57 @@ describe("web portal routes", () => {
           amount: "100.00",
           currency: "USD",
           description: "Top-up local",
+        }),
+      }),
+    );
+  });
+
+  it("forwards withdrawal creation requests to the api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        payment: {
+          uuid: "withdrawal-uuid",
+          status: "completed",
+          amount: "50.0000",
+        },
+      }), {
+        status: 201,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const response = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "POST",
+      url: "/api/payments/withdrawals",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+        "idempotency-key": "wd-local-001",
+      },
+      body: JSON.stringify({
+        amount: "50.00",
+        currency: "USD",
+        description: "Cash-out local",
+      }),
+    }) as never, response);
+
+    expect(response.statusCode).toBe(201);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/withdrawals", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "wd-local-001",
+        }),
+        body: JSON.stringify({
+          amount: "50.00",
+          currency: "USD",
+          description: "Cash-out local",
         }),
       }),
     );

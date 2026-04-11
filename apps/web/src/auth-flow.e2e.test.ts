@@ -822,4 +822,53 @@ describe("web auth flow e2e", () => {
       }),
     );
   });
+
+  it("forwards withdrawal creation to the existing payments endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          payment: {
+            uuid: "withdrawal-uuid",
+            status: "completed",
+            amount: "40.0000",
+            currency: "USD",
+          },
+        }),
+        { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const withdrawResponse = await invokeWebRoute({
+      method: "POST",
+      url: "/api/payments/withdrawals",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+      },
+      body: {
+        amount: "40.00",
+        currency: "USD",
+        description: "Cash-out local",
+      },
+    });
+
+    expect(withdrawResponse.status).toBe(201);
+    expect(withdrawResponse.json()).toMatchObject({
+      payment: {
+        uuid: "withdrawal-uuid",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/withdrawals", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+  });
 });

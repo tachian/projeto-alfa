@@ -8,6 +8,7 @@ import { renderMarketDetailPage } from "./market-detail-page.js";
 import { renderMarketsPage } from "./markets-page.js";
 import { renderOrdersPage } from "./orders-page.js";
 import { renderPaymentsDepositPage } from "./payments-deposit-page.js";
+import { renderPaymentsWithdrawPage } from "./payments-withdraw-page.js";
 import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
 import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
 import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
@@ -283,6 +284,16 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "POST" && pathname === "/api/payments/withdrawals") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/payments/withdrawals",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -379,28 +390,9 @@ export const handleWebRequest = async (
   if (request.method === "GET" && pathname === "/payments/withdraw") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderPaymentsWithdrawPage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Movimentacoes",
-        title: "Saque com contexto de limites e cash-out futuro.",
-        description:
-          "Esta trilha vai reunir saldo disponivel, validacoes de risco e proximos passos para integracao com parceiros reais de retirada.",
-        status: "Proxima etapa: conectar formulario de saque e feedback de saldo, limites e conta ativa.",
-        authMode: "protected",
-        cards: [
-          {
-            title: "Voltar para movimentacoes",
-            description: "Retorne ao indice da area financeira do portal.",
-            href: "/payments",
-            tone: "accent",
-          },
-          {
-            title: "Carteira",
-            description: "Abra a carteira para verificar o saldo disponivel antes do saque.",
-            href: "/wallet",
-          },
-        ],
       }),
     );
     return;
