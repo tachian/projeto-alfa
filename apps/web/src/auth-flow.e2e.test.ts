@@ -871,4 +871,89 @@ describe("web auth flow e2e", () => {
       }),
     );
   });
+
+  it("forwards payment history reads to the existing listing endpoints", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "deposit-uuid",
+                type: "deposit",
+                status: "completed",
+                amount: "100.0000",
+                currency: "USD",
+              },
+            ],
+            meta: {
+              count: 1,
+              limit: 20,
+              type: "deposit",
+              currency: "USD",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "withdrawal-uuid",
+                type: "withdrawal",
+                status: "completed",
+                amount: "40.0000",
+                currency: "USD",
+              },
+            ],
+            meta: {
+              count: 1,
+              limit: 20,
+              type: "withdrawal",
+              currency: "USD",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const depositsResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/payments/deposits?currency=USD&limit=20",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(depositsResponse.status).toBe(200);
+    expect(depositsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "deposit-uuid",
+        },
+      ],
+    });
+
+    const withdrawalsResponse = await invokeWebRoute({
+      method: "GET",
+      url: "/api/payments/withdrawals?currency=USD&limit=20",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(withdrawalsResponse.status).toBe(200);
+    expect(withdrawalsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "withdrawal-uuid",
+        },
+      ],
+    });
+  });
 });

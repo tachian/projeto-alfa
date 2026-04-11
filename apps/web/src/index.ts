@@ -8,6 +8,7 @@ import { renderMarketDetailPage } from "./market-detail-page.js";
 import { renderMarketsPage } from "./markets-page.js";
 import { renderOrdersPage } from "./orders-page.js";
 import { renderPaymentsDepositPage } from "./payments-deposit-page.js";
+import { renderPaymentsHistoryPage } from "./payments-history-page.js";
 import { renderPaymentsWithdrawPage } from "./payments-withdraw-page.js";
 import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
 import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
@@ -294,6 +295,22 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/payments/deposits") {
+    await proxyApiRequest({
+      path: `/payments/deposits${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/api/payments/withdrawals") {
+    await proxyApiRequest({
+      path: `/payments/withdrawals${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -401,28 +418,9 @@ export const handleWebRequest = async (
   if (request.method === "GET" && pathname === "/payments/history") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderPaymentsHistoryPage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Movimentacoes",
-        title: "Historico financeiro separado da carteira e do trading.",
-        description:
-          "Aqui o usuario vai acompanhar depositos, saques, status e provedores sem misturar conciliacao financeira com ordens e portfolio.",
-        status: "Proxima etapa: integrar depositos e saques existentes em um historico combinado por tipo e status.",
-        authMode: "protected",
-        cards: [
-          {
-            title: "Voltar para movimentacoes",
-            description: "Retorne ao indice da area financeira do portal.",
-            href: "/payments",
-            tone: "accent",
-          },
-          {
-            title: "Carteira",
-            description: "Abra o saldo e o extrato contabio para complementar a leitura do historico.",
-            href: "/wallet",
-          },
-        ],
       }),
     );
     return;

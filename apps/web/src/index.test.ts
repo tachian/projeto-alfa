@@ -136,7 +136,8 @@ describe("web portal routes", () => {
 
     const historyResponse = await invokeWebRoute("/payments/history");
     expect(historyResponse.status).toBe(200);
-    expect(historyResponse.text()).toContain("Historico financeiro separado da carteira e do trading.");
+    expect(historyResponse.text()).toContain("Historico financeiro em uma trilha unica.");
+    expect(historyResponse.text()).toContain('id="history-filters-form"');
   });
 
   it("serves the portfolio workspace and subpages", async () => {
@@ -353,6 +354,61 @@ describe("web portal routes", () => {
           currency: "USD",
           description: "Cash-out local",
         }),
+      }),
+    );
+  });
+
+  it("forwards payment history listing requests to the api", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [], meta: { type: "deposit", limit: 20, currency: "USD" } }), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ items: [], meta: { type: "withdrawal", limit: 20, currency: "USD" } }), {
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        }),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const depositsResponse = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "GET",
+      url: "/api/payments/deposits?currency=USD&limit=20",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    }) as never, depositsResponse);
+
+    expect(depositsResponse.statusCode).toBe(200);
+
+    const withdrawalsResponse = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "GET",
+      url: "/api/payments/withdrawals?currency=USD&limit=20",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    }) as never, withdrawalsResponse);
+
+    expect(withdrawalsResponse.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/payments/deposits?currency=USD&limit=20", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/payments/withdrawals?currency=USD&limit=20", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
       }),
     );
   });
