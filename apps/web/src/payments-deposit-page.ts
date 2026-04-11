@@ -1,11 +1,16 @@
 import { escapeHtml } from "./html.js";
 import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { DEPOSIT_METHODS, getAvailablePaymentMethod } from "./payments-methods.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderPaymentsDepositPage = (input: {
   appName: string;
   pathname: string;
-}) => `<!doctype html>
+}) => {
+  const depositMethods = DEPOSIT_METHODS;
+  const defaultMethod = getAvailablePaymentMethod(depositMethods);
+
+  return `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -333,7 +338,9 @@ export const renderPaymentsDepositPage = (input: {
                 <label>
                   Metodo
                   <select id="deposit-method" name="method">
-                    <option value="manual_mock">Ambiente local</option>
+                    ${depositMethods.map((method) => (
+                      `<option value="${method.key}"${method.key === defaultMethod.key ? " selected" : ""}${method.availability !== "available" ? " disabled" : ""}>${escapeHtml(method.label)}${method.availability !== "available" ? " (em breve)" : ""}</option>`
+                    )).join("")}
                   </select>
                 </label>
 
@@ -366,19 +373,21 @@ export const renderPaymentsDepositPage = (input: {
           </article>
 
           <div class="methods">
-            <article id="method-card-manual" class="method-card active">
-              <div class="method-badge">Disponivel agora</div>
-              <h2 style="margin-top: 12px;">Ambiente local</h2>
-              <p>Completa o deposito imediatamente para acelerar testes de carteira, trading e portfolio sem depender de integracao externa.</p>
-            </article>
+            <div id="deposit-method-cards">
+              ${depositMethods.map((method) => (
+                `<article id="method-card-${method.key}" class="method-card${method.key === defaultMethod.key ? " active" : ""}">
+                  <div class="method-badge">${escapeHtml(method.badge)}</div>
+                  <h2 style="margin-top: 12px;">${escapeHtml(method.label)}</h2>
+                  <p>${escapeHtml(method.description)}</p>
+                </article>`
+              )).join("")}
+            </div>
 
             <article class="instruction-card">
               <div class="eyebrow">Instrucoes</div>
-              <h2 id="instruction-title" style="margin-top: 10px;">Fluxo manual de desenvolvimento</h2>
+              <h2 id="instruction-title" style="margin-top: 10px;">${escapeHtml(defaultMethod.instructionTitle)}</h2>
               <ul id="instruction-list">
-                <li>O valor enviado entra direto na carteira disponivel.</li>
-                <li>Use a chave de idempotencia para evitar duplicidade acidental.</li>
-                <li>Esta trilha sera reaproveitada no futuro para PIX, QR Code ou checkout externo.</li>
+                ${defaultMethod.instructions.map((instruction) => `<li>${escapeHtml(instruction)}</li>`).join("")}
               </ul>
               <div class="action-links">
                 <a class="action-link primary" href="/wallet">Abrir carteira</a>
@@ -394,6 +403,7 @@ export const renderPaymentsDepositPage = (input: {
       ${renderSessionClientScript()}
       ${renderWalletHeaderScript()}
 
+      const depositMethods = ${JSON.stringify(depositMethods)};
       const sessionClient = window.ProjetoAlfaWebSession;
       const syncWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
       const identityName = document.getElementById("identity-name");
@@ -403,11 +413,14 @@ export const renderPaymentsDepositPage = (input: {
       const depositInlineStatus = document.getElementById("deposit-inline-status");
       const depositForm = document.getElementById("deposit-form");
       const depositMethodInput = document.getElementById("deposit-method");
+      const depositMethodCards = document.getElementById("deposit-method-cards");
       const depositCurrencyInput = document.getElementById("deposit-currency");
       const depositAmountInput = document.getElementById("deposit-amount");
       const depositIdempotencyInput = document.getElementById("deposit-idempotency");
       const depositDescriptionInput = document.getElementById("deposit-description");
       const depositSubmitButton = document.getElementById("deposit-submit");
+      const instructionTitle = document.getElementById("instruction-title");
+      const instructionList = document.getElementById("instruction-list");
       const walletAvailable = document.getElementById("wallet-available");
       const walletTotal = document.getElementById("wallet-total");
       const walletCurrency = document.getElementById("wallet-currency");
@@ -419,6 +432,28 @@ export const renderPaymentsDepositPage = (input: {
 
       const setInlineStatus = (message) => {
         depositInlineStatus.textContent = message;
+      };
+
+      const getSelectedMethod = () => {
+        return depositMethods.find((method) => method.key === depositMethodInput.value) || depositMethods[0];
+      };
+
+      const paintMethodDetails = () => {
+        const selectedMethod = getSelectedMethod();
+
+        Array.from(depositMethodCards.querySelectorAll(".method-card")).forEach((card) => {
+          card.classList.toggle("active", card.id === "method-card-" + selectedMethod.key);
+        });
+
+        instructionTitle.textContent = selectedMethod.instructionTitle;
+        instructionList.innerHTML = selectedMethod.instructions.map((instruction) => "<li>" + instruction + "</li>").join("");
+        depositSubmitButton.textContent = selectedMethod.submitLabel;
+        setInlineStatus(selectedMethod.helperText);
+
+        const selectedCurrency = selectedMethod.supportedCurrencies[0] || "USD";
+        if (!selectedMethod.supportedCurrencies.includes(depositCurrencyInput.value.trim().toUpperCase())) {
+          depositCurrencyInput.value = selectedCurrency;
+        }
       };
 
       const formatAmount = (value, currency) => {
@@ -439,7 +474,7 @@ export const renderPaymentsDepositPage = (input: {
       };
 
       const validateForm = () => {
-        const method = depositMethodInput.value.trim();
+        const method = getSelectedMethod();
         const currency = depositCurrencyInput.value.trim().toUpperCase();
         const amount = Number(depositAmountInput.value);
 
@@ -447,8 +482,16 @@ export const renderPaymentsDepositPage = (input: {
           return "Escolha um metodo de deposito.";
         }
 
+        if (method.availability !== "available") {
+          return "Este metodo ainda nao esta disponivel no portal.";
+        }
+
         if (currency.length !== 3) {
           return "Informe uma moeda com 3 letras.";
+        }
+
+        if (!method.supportedCurrencies.includes(currency)) {
+          return "Este metodo ainda nao suporta a moeda informada.";
         }
 
         if (!Number.isFinite(amount) || amount <= 0) {
@@ -479,7 +522,7 @@ export const renderPaymentsDepositPage = (input: {
 
           paintIdentity(user);
           setStatus("Escolha o valor e confirme o deposito.", "success");
-          setInlineStatus("O deposito sera refletido imediatamente na carteira neste ambiente.");
+          paintMethodDetails();
         } catch (error) {
           if (error?.code === "unauthenticated") {
             sessionClient.redirectToLogin("expired");
@@ -503,7 +546,7 @@ export const renderPaymentsDepositPage = (input: {
         setStatus("Criando deposito e atualizando carteira...");
         setInlineStatus("Processando deposito...");
 
-        const method = depositMethodInput.value.trim();
+        const method = getSelectedMethod();
         const currency = depositCurrencyInput.value.trim().toUpperCase();
         const amount = Number(depositAmountInput.value).toFixed(2);
         const idempotencyKey = depositIdempotencyInput.value.trim();
@@ -557,7 +600,12 @@ export const renderPaymentsDepositPage = (input: {
         sessionClient.logout();
       });
 
+      depositMethodInput.addEventListener("change", () => {
+        paintMethodDetails();
+      });
+
       loadContext();
     </script>
   </body>
 </html>`;
+};

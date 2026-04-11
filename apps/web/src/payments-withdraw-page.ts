@@ -1,11 +1,16 @@
 import { escapeHtml } from "./html.js";
 import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { WITHDRAW_METHODS, getAvailablePaymentMethod } from "./payments-methods.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderPaymentsWithdrawPage = (input: {
   appName: string;
   pathname: string;
-}) => `<!doctype html>
+}) => {
+  const withdrawMethods = WITHDRAW_METHODS;
+  const defaultMethod = getAvailablePaymentMethod(withdrawMethods);
+
+  return `<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
@@ -343,7 +348,9 @@ export const renderPaymentsWithdrawPage = (input: {
                 <label>
                   Metodo
                   <select id="withdraw-method" name="method">
-                    <option value="manual_mock">Ambiente local</option>
+                    ${withdrawMethods.map((method) => (
+                      `<option value="${method.key}"${method.key === defaultMethod.key ? " selected" : ""}${method.availability !== "available" ? " disabled" : ""}>${escapeHtml(method.label)}${method.availability !== "available" ? " (em breve)" : ""}</option>`
+                    )).join("")}
                   </select>
                 </label>
 
@@ -376,19 +383,21 @@ export const renderPaymentsWithdrawPage = (input: {
           </article>
 
           <div class="methods">
-            <article id="method-card-manual" class="method-card active">
-              <div class="method-badge">Disponivel agora</div>
-              <h2 style="margin-top: 12px;">Ambiente local</h2>
-              <p>Executa o saque imediatamente no ambiente de desenvolvimento para testar risco, saldo disponivel e reflexo na carteira sem depender de um parceiro externo.</p>
-            </article>
+            <div id="withdraw-method-cards">
+              ${withdrawMethods.map((method) => (
+                `<article id="method-card-${method.key}" class="method-card${method.key === defaultMethod.key ? " active" : ""}">
+                  <div class="method-badge">${escapeHtml(method.badge)}</div>
+                  <h2 style="margin-top: 12px;">${escapeHtml(method.label)}</h2>
+                  <p>${escapeHtml(method.description)}</p>
+                </article>`
+              )).join("")}
+            </div>
 
             <article class="instruction-card">
               <div class="eyebrow">Instrucoes</div>
-              <h2 id="instruction-title" style="margin-top: 10px;">Fluxo local de retirada</h2>
+              <h2 id="instruction-title" style="margin-top: 10px;">${escapeHtml(defaultMethod.instructionTitle)}</h2>
               <ul id="instruction-list">
-                <li>Somente o saldo disponivel pode ser retirado.</li>
-                <li>Ordens abertas mantem parte do capital em reservado e esse valor nao sai da carteira.</li>
-                <li>Limites simples de risco e status da conta podem bloquear a solicitacao.</li>
+                ${defaultMethod.instructions.map((instruction) => `<li>${escapeHtml(instruction)}</li>`).join("")}
               </ul>
               <div class="action-links">
                 <a class="action-link primary" href="/wallet">Abrir carteira</a>
@@ -404,6 +413,7 @@ export const renderPaymentsWithdrawPage = (input: {
       ${renderSessionClientScript()}
       ${renderWalletHeaderScript()}
 
+      const withdrawMethods = ${JSON.stringify(withdrawMethods)};
       const sessionClient = window.ProjetoAlfaWebSession;
       const syncWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
       const identityName = document.getElementById("identity-name");
@@ -413,11 +423,14 @@ export const renderPaymentsWithdrawPage = (input: {
       const withdrawInlineStatus = document.getElementById("withdraw-inline-status");
       const withdrawForm = document.getElementById("withdraw-form");
       const withdrawMethodInput = document.getElementById("withdraw-method");
+      const withdrawMethodCards = document.getElementById("withdraw-method-cards");
       const withdrawCurrencyInput = document.getElementById("withdraw-currency");
       const withdrawAmountInput = document.getElementById("withdraw-amount");
       const withdrawIdempotencyInput = document.getElementById("withdraw-idempotency");
       const withdrawDescriptionInput = document.getElementById("withdraw-description");
       const withdrawSubmitButton = document.getElementById("withdraw-submit");
+      const instructionTitle = document.getElementById("instruction-title");
+      const instructionList = document.getElementById("instruction-list");
       const walletAvailable = document.getElementById("wallet-available");
       const walletReserved = document.getElementById("wallet-reserved");
       const walletTotal = document.getElementById("wallet-total");
@@ -434,6 +447,28 @@ export const renderPaymentsWithdrawPage = (input: {
 
       const setInlineStatus = (message) => {
         withdrawInlineStatus.textContent = message;
+      };
+
+      const getSelectedMethod = () => {
+        return withdrawMethods.find((method) => method.key === withdrawMethodInput.value) || withdrawMethods[0];
+      };
+
+      const paintMethodDetails = () => {
+        const selectedMethod = getSelectedMethod();
+
+        Array.from(withdrawMethodCards.querySelectorAll(".method-card")).forEach((card) => {
+          card.classList.toggle("active", card.id === "method-card-" + selectedMethod.key);
+        });
+
+        instructionTitle.textContent = selectedMethod.instructionTitle;
+        instructionList.innerHTML = selectedMethod.instructions.map((instruction) => "<li>" + instruction + "</li>").join("");
+        withdrawSubmitButton.textContent = selectedMethod.submitLabel;
+        setInlineStatus(selectedMethod.helperText);
+
+        const selectedCurrency = selectedMethod.supportedCurrencies[0] || "USD";
+        if (!selectedMethod.supportedCurrencies.includes(withdrawCurrencyInput.value.trim().toUpperCase())) {
+          withdrawCurrencyInput.value = selectedCurrency;
+        }
       };
 
       const formatAmount = (value, currency) => {
@@ -458,7 +493,7 @@ export const renderPaymentsWithdrawPage = (input: {
       };
 
       const validateForm = () => {
-        const method = withdrawMethodInput.value.trim();
+        const method = getSelectedMethod();
         const currency = withdrawCurrencyInput.value.trim().toUpperCase();
         const amount = Number(withdrawAmountInput.value);
 
@@ -466,8 +501,16 @@ export const renderPaymentsWithdrawPage = (input: {
           return "Escolha um metodo de saque.";
         }
 
+        if (method.availability !== "available") {
+          return "Este metodo ainda nao esta disponivel no portal.";
+        }
+
         if (currency.length !== 3) {
           return "Informe uma moeda com 3 letras.";
+        }
+
+        if (!method.supportedCurrencies.includes(currency)) {
+          return "Este metodo ainda nao suporta a moeda informada.";
         }
 
         if (!Number.isFinite(amount) || amount <= 0) {
@@ -506,7 +549,7 @@ export const renderPaymentsWithdrawPage = (input: {
 
           paintIdentity(user);
           setStatus("Revise saldo disponivel e confirme o saque.", "success");
-          setInlineStatus("Saque sujeito a saldo, status da conta e limites configurados.");
+          paintMethodDetails();
         } catch (error) {
           if (error?.code === "unauthenticated") {
             sessionClient.redirectToLogin("expired");
@@ -530,6 +573,7 @@ export const renderPaymentsWithdrawPage = (input: {
         setStatus("Criando saque e atualizando carteira...");
         setInlineStatus("Processando solicitacao...");
 
+        const method = getSelectedMethod();
         const currency = withdrawCurrencyInput.value.trim().toUpperCase();
         const amount = Number(withdrawAmountInput.value).toFixed(2);
         const idempotencyKey = withdrawIdempotencyInput.value.trim();
@@ -582,7 +626,12 @@ export const renderPaymentsWithdrawPage = (input: {
         sessionClient.logout();
       });
 
+      withdrawMethodInput.addEventListener("change", () => {
+        paintMethodDetails();
+      });
+
       loadContext();
     </script>
   </body>
 </html>`;
+};
