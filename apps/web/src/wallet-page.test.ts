@@ -17,5 +17,10 @@ describe("renderWalletPage", () => {
     expect(html).toContain('id="wallet-entries"');
     expect(html).toContain("/api/wallet/balance");
     expect(html).toContain("/api/wallet/entries?limit=100");
+    expect(html).toContain('href="/payments/deposit"');
+    expect(html).toContain('href="/payments/withdraw"');
+    expect(html).toContain('href="/payments/history"');
+    expect(html).toContain("Pode ser usado agora");
+    expect(html).toContain("Fica preso ao book");
   });
 });

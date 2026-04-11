@@ -91,7 +91,8 @@ export const renderWalletPage = (input: {
       }
 
       .identity-card,
-      .summary-card {
+      .summary-card,
+      .guidance-card {
         padding: 18px;
         border-radius: 20px;
         border: 1px solid var(--line);
@@ -154,6 +155,13 @@ export const renderWalletPage = (input: {
       .summary-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .guidance-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 14px;
         margin-top: 18px;
       }
@@ -223,7 +231,8 @@ export const renderWalletPage = (input: {
 
       @media (max-width: 980px) {
         .hero-grid,
-        .summary-grid {
+        .summary-grid,
+        .guidance-grid {
           grid-template-columns: 1fr;
         }
       }
@@ -262,12 +271,12 @@ export const renderWalletPage = (input: {
           <article class="summary-card">
             <div class="summary-label">Disponivel</div>
             <div id="wallet-available" class="summary-value">-</div>
-            <div class="summary-note">Saldo pronto para operar</div>
+            <div id="wallet-available-note" class="summary-note">Saldo pronto para operar e sacar</div>
           </article>
           <article class="summary-card">
             <div class="summary-label">Reservado</div>
             <div id="wallet-reserved" class="summary-value">-</div>
-            <div class="summary-note">Valor bloqueado em ordens</div>
+            <div id="wallet-reserved-note" class="summary-note">Valor bloqueado em ordens abertas</div>
           </article>
           <article class="summary-card">
             <div class="summary-label">Total</div>
@@ -276,12 +285,28 @@ export const renderWalletPage = (input: {
           </article>
         </div>
 
+        <div class="guidance-grid">
+          <article class="guidance-card">
+            <div class="eyebrow">Disponivel</div>
+            <h2 style="margin-top: 10px;">Pode ser usado agora</h2>
+            <p>O saldo disponivel pode seguir para novas ordens, deposito compensado em carteira ou solicitacao de saque.</p>
+          </article>
+          <article class="guidance-card">
+            <div class="eyebrow">Reservado</div>
+            <h2 style="margin-top: 10px;">Fica preso ao book</h2>
+            <p>Quando voce abre ordens, parte do capital vai para reservado. Esse valor nao entra no saque ate a ordem ser executada ou cancelada.</p>
+          </article>
+        </div>
+
         <div class="table-wrap">
           <div id="wallet-entries" class="empty-state">Carregando extrato...</div>
         </div>
 
         <div class="action-links">
-          <a class="action-link primary" href="/markets">Explorar mercados</a>
+          <a class="action-link primary" href="/payments/deposit">Depositar</a>
+          <a class="action-link" href="/payments/withdraw">Sacar</a>
+          <a class="action-link" href="/payments/history">Historico financeiro</a>
+          <a class="action-link" href="/markets">Explorar mercados</a>
           <a class="action-link" href="/orders">Ver ordens</a>
           <a class="action-link" href="/portfolio/positions">Abrir portfolio</a>
         </div>
@@ -298,7 +323,9 @@ export const renderWalletPage = (input: {
       const logoutButton = document.getElementById("logout-button");
       const walletStatus = document.getElementById("wallet-status");
       const walletAvailable = document.getElementById("wallet-available");
+      const walletAvailableNote = document.getElementById("wallet-available-note");
       const walletReserved = document.getElementById("wallet-reserved");
+      const walletReservedNote = document.getElementById("wallet-reserved-note");
       const walletTotal = document.getElementById("wallet-total");
       const walletCurrency = document.getElementById("wallet-currency");
       const walletEntries = document.getElementById("wallet-entries");
@@ -329,10 +356,18 @@ export const renderWalletPage = (input: {
       };
 
       const paintBalance = (balance) => {
+        const available = Number(balance.available || 0);
+        const reserved = Number(balance.reserved || 0);
         walletAvailable.textContent = formatAmount(balance.available, balance.currency);
         walletReserved.textContent = formatAmount(balance.reserved, balance.currency);
         walletTotal.textContent = formatAmount(balance.total, balance.currency);
         walletCurrency.textContent = "Contas em " + (balance.currency || "BRL");
+        walletAvailableNote.textContent = available > 0
+          ? "Saldo pronto para operar ou solicitar saque."
+          : "Sem saldo disponivel no momento.";
+        walletReservedNote.textContent = reserved > 0
+          ? "Parte do capital esta comprometida com ordens abertas."
+          : "Nao ha saldo reservado em ordens no momento.";
       };
 
       const renderEntries = (entries, currency) => {
