@@ -319,6 +319,8 @@ Areas do portal:
 - `Home`: apresentacao do produto e ponto de entrada do usuario comum
 - `Mercados`: catalogo publico e detalhe do contrato com book e trades recentes
 - `Ordens`: trilha autenticada para listar e cancelar ordens do usuario
+- `Carteira`: saldo disponivel, reservado, total e extrato financeiro
+- `Movimentacoes`: deposito, saque e historico financeiro
 - `Portfolio`: posicoes, PnL e historico de liquidacoes
 - `Minha conta`: manutencao cadastral do perfil
 
@@ -328,23 +330,33 @@ Fluxo operacional atual do `web`:
 2. explorar mercados em `Mercados`
 3. abrir um contrato em `Mercados > Detalhe`
 4. enviar ordem diretamente na pagina do mercado
-5. acompanhar ordens em `Ordens`
-6. consultar exposicao em `Portfolio > Posicoes`
-7. consultar resultado consolidado em `Portfolio > PnL`
-8. consultar settlements em `Portfolio > Liquidacoes`
-9. atualizar nome, email e telefone em `Minha conta`
+5. consultar saldo e extrato em `Carteira`
+6. usar `Movimentacoes > Depositar` para creditar saldo na wallet
+7. usar `Movimentacoes > Sacar` para retirar saldo disponivel
+8. acompanhar o historico em `Movimentacoes > Historico`
+9. acompanhar ordens em `Ordens`
+10. consultar exposicao em `Portfolio > Posicoes`
+11. consultar resultado consolidado em `Portfolio > PnL`
+12. consultar settlements em `Portfolio > Liquidacoes`
+13. atualizar nome, email e telefone em `Minha conta`
 
 Comportamentos importantes do portal:
 
 - o cadastro valida `nome`, `email`, `telefone` e `senha` no cliente antes de chamar a API
 - a pagina de mercado valida `preco` e `quantidade` antes de enviar ordem
 - o envio de ordem fica bloqueado quando o mercado nao estiver em status `open`
+- a area `Carteira` mostra saldo `disponivel`, `reservado` e `total`, com link direto para movimentacoes
+- a area `Movimentacoes` separa deposito, saque e historico para manter a carteira menos poluida
+- `Movimentacoes > Depositar` usa `POST /payments/deposits` com `Idempotency-Key` e atualiza o saldo no header depois do sucesso
+- `Movimentacoes > Sacar` usa `POST /payments/withdrawals`, valida saldo disponivel antes do envio e atualiza a carteira depois da operacao
+- `Movimentacoes > Historico` combina depositos e saques em uma unica trilha com filtros por tipo, moeda e limite
+- deposito e saque ja usam um catalogo de metodos no frontend preparado para evoluir de `manual_mock` para `PIX`, `checkout externo`, `PIX cash-out` e `transferencia bancaria`
 - a tela `Ordens` valida filtros de `marketUuid` e `limit` antes de consultar a API
 - a tela `Portfolio > Posicoes` resume quantidade de posicoes, mercados, maior exposicao e PnL total
 - a tela `Portfolio > PnL` destaca o card principal conforme positivo, negativo ou neutro
 - a tela `Portfolio > Liquidacoes` resume quantidade, vitorias, derrotas e payout total
 - o botao `Sair` limpa a sessao local e redireciona para `/login`
-- o portal possui cobertura e2e da jornada `cadastro -> login -> perfil -> mercado -> ordem -> portfolio`
+- o portal possui cobertura e2e da jornada `cadastro -> login -> perfil -> mercado -> ordem -> carteira -> portfolio`
 
 Canal realtime do `api`:
 
