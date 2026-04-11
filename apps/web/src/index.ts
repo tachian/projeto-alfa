@@ -7,6 +7,7 @@ import { renderLoginPage } from "./login-page.js";
 import { renderMarketDetailPage } from "./market-detail-page.js";
 import { renderMarketsPage } from "./markets-page.js";
 import { renderOrdersPage } from "./orders-page.js";
+import { renderPaymentsDepositPage } from "./payments-deposit-page.js";
 import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
 import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
 import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
@@ -48,10 +49,12 @@ export const handleWebRequest = async (
   }) => {
     try {
       const authorization = request.headers.authorization;
+      const idempotencyKey = request.headers["idempotency-key"];
       const upstreamResponse = await fetch(new URL(input.path, webConfig.API_URL), {
         method: input.method,
         headers: {
           ...(authorization ? { Authorization: authorization } : {}),
+          ...(typeof idempotencyKey === "string" ? { "Idempotency-Key": idempotencyKey } : {}),
           ...(input.body ? { "Content-Type": "application/json" } : {}),
         },
         body: input.body ? JSON.stringify(input.body) : undefined,
@@ -270,6 +273,16 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "POST" && pathname === "/api/payments/deposits") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      path: "/payments/deposits",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
@@ -355,28 +368,9 @@ export const handleWebRequest = async (
   if (request.method === "GET" && pathname === "/payments/deposit") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(
-      renderWorkspacePage({
+      renderPaymentsDepositPage({
         appName: webConfig.APP_NAME,
         pathname,
-        eyebrow: "Movimentacoes",
-        title: "Deposito preparado para PIX e cash-in futuro.",
-        description:
-          "Esta tela vai concentrar criacao de deposito, instrucoes por metodo e estados assincronos para provedores externos sem acoplar a experiencia ao modo mock.",
-        status: "Proxima etapa: conectar formulario de deposito e instrucoes dinamicas por metodo.",
-        authMode: "protected",
-        cards: [
-          {
-            title: "Voltar para movimentacoes",
-            description: "Retorne ao indice da area financeira do portal.",
-            href: "/payments",
-            tone: "accent",
-          },
-          {
-            title: "Carteira",
-            description: "Consulte saldo, reservado e extrato atual da conta.",
-            href: "/wallet",
-          },
-        ],
       }),
     );
     return;

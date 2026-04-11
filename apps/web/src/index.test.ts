@@ -126,7 +126,8 @@ describe("web portal routes", () => {
 
     const depositResponse = await invokeWebRoute("/payments/deposit");
     expect(depositResponse.status).toBe(200);
-    expect(depositResponse.text()).toContain("Deposito preparado para PIX e cash-in futuro.");
+    expect(depositResponse.text()).toContain("Entrada de recursos pronta para evoluir para PIX.");
+    expect(depositResponse.text()).toContain('id="deposit-form"');
 
     const withdrawResponse = await invokeWebRoute("/payments/withdraw");
     expect(withdrawResponse.status).toBe(200);
@@ -248,6 +249,57 @@ describe("web portal routes", () => {
         method: "GET",
         headers: expect.objectContaining({
           Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+  });
+
+  it("forwards deposit creation requests to the api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        payment: {
+          uuid: "payment-uuid",
+          status: "completed",
+          amount: "100.0000",
+        },
+      }), {
+        status: 201,
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const response = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "POST",
+      url: "/api/payments/deposits",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+        "idempotency-key": "dep-local-001",
+      },
+      body: JSON.stringify({
+        amount: "100.00",
+        currency: "USD",
+        description: "Top-up local",
+      }),
+    }) as never, response);
+
+    expect(response.statusCode).toBe(201);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/deposits", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+          "Content-Type": "application/json",
+          "Idempotency-Key": "dep-local-001",
+        }),
+        body: JSON.stringify({
+          amount: "100.00",
+          currency: "USD",
+          description: "Top-up local",
         }),
       }),
     );

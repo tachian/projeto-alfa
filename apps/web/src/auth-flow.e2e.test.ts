@@ -773,4 +773,53 @@ describe("web auth flow e2e", () => {
       }),
     );
   });
+
+  it("forwards deposit creation to the existing payments endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          payment: {
+            uuid: "payment-uuid",
+            status: "completed",
+            amount: "150.0000",
+            currency: "USD",
+          },
+        }),
+        { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const depositResponse = await invokeWebRoute({
+      method: "POST",
+      url: "/api/payments/deposits",
+      headers: {
+        authorization: "Bearer user-token",
+        "content-type": "application/json",
+      },
+      body: {
+        amount: "150.00",
+        currency: "USD",
+        description: "Top-up local",
+      },
+    });
+
+    expect(depositResponse.status).toBe(201);
+    expect(depositResponse.json()).toMatchObject({
+      payment: {
+        uuid: "payment-uuid",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/deposits", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+  });
 });

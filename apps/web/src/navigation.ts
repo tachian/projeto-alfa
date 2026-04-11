@@ -297,5 +297,6 @@ export const renderWalletHeaderScript = () => `
     }
   };
 
+  window.ProjetoAlfaWebSyncWalletHeader = syncWalletHeader;
   syncWalletHeader();
 `;
