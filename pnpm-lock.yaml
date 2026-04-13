@@ -87,6 +87,8 @@ importers:
         specifier: ^6.5.0
         version: 6.19.2(typescript@5.9.3)
 
+  apps/web: {}
+
   apps/worker: {}
 
   packages/config: {}
