@@ -329,6 +329,11 @@ export const renderPaymentsDepositPage = (input: {
             <div id="wallet-total" class="summary-value">-</div>
             <div id="wallet-currency" class="summary-note">Moeda da carteira</div>
           </article>
+          <article class="summary-card">
+            <div class="summary-label">Contexto da conta</div>
+            <div id="deposit-account-note" class="summary-value">-</div>
+            <div class="summary-note">Status atual para cash-in e proximos passos</div>
+          </article>
         </div>
 
         <div class="content-grid" style="margin-top: 18px;">
@@ -403,7 +408,7 @@ export const renderPaymentsDepositPage = (input: {
       ${renderSessionClientScript()}
       ${renderWalletHeaderScript()}
 
-      const depositMethods = ${JSON.stringify(depositMethods)};
+      const seedDepositMethods = ${JSON.stringify(depositMethods)};
       const sessionClient = window.ProjetoAlfaWebSession;
       const syncWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
       const identityName = document.getElementById("identity-name");
@@ -424,6 +429,12 @@ export const renderPaymentsDepositPage = (input: {
       const walletAvailable = document.getElementById("wallet-available");
       const walletTotal = document.getElementById("wallet-total");
       const walletCurrency = document.getElementById("wallet-currency");
+      const depositAccountNote = document.getElementById("deposit-account-note");
+
+      let depositMethods = seedDepositMethods.slice();
+      let currentTotal = 0;
+      let currentCurrency = "USD";
+      let currentUserStatus = "pending_verification";
 
       const setStatus = (message, tone = "default") => {
         depositStatus.dataset.tone = tone;
@@ -438,6 +449,96 @@ export const renderPaymentsDepositPage = (input: {
         return depositMethods.find((method) => method.key === depositMethodInput.value) || depositMethods[0];
       };
 
+      const mergeCapabilities = (items) => {
+        if (!Array.isArray(items) || !items.length) {
+          return;
+        }
+
+        depositMethods = seedDepositMethods.map((baseMethod) => {
+          const capability = items.find((item) => item?.key === baseMethod.key);
+
+          if (!capability) {
+            return baseMethod;
+          }
+
+          return {
+            ...baseMethod,
+            provider: capability.provider || baseMethod.provider,
+            availability: capability.availability === "enabled" ? "available" : "planned",
+            integrationModel: capability.executionModel === "instant_completion" ? "instant" : "async",
+            supportedCurrencies:
+              Array.isArray(capability.supportedCurrencies) && capability.supportedCurrencies.length
+                ? capability.supportedCurrencies
+                : baseMethod.supportedCurrencies,
+          };
+        });
+      };
+
+      const rerenderMethodOptions = () => {
+        const currentKey = depositMethodInput.value;
+        const selectedMethod =
+          depositMethods.find((method) => method.key === currentKey) ||
+          depositMethods.find((method) => method.availability === "available") ||
+          depositMethods[0];
+
+        depositMethodInput.innerHTML = depositMethods
+          .map((method) =>
+            "<option value=\\"" +
+            method.key +
+            "\\"" +
+            (selectedMethod?.key === method.key ? " selected" : "") +
+            (method.availability !== "available" ? " disabled" : "") +
+            ">" +
+            method.label +
+            (method.availability !== "available" ? " (em breve)" : "") +
+            "</option>",
+          )
+          .join("");
+      };
+
+      const rerenderMethodCards = () => {
+        depositMethodCards.innerHTML = depositMethods
+          .map((method) =>
+            "<article id=\\"method-card-" +
+            method.key +
+            "\\" class=\\"method-card\\">" +
+            "<div class=\\"method-badge\\">" +
+            method.badge +
+            "</div>" +
+            "<h2 style=\\"margin-top: 12px;\\">" +
+            method.label +
+            "</h2>" +
+            "<p>" +
+            method.description +
+            "</p>" +
+            "</article>",
+          )
+          .join("");
+      };
+
+      const updateInlinePreview = () => {
+        const selectedMethod = getSelectedMethod();
+        const amount = Number(depositAmountInput.value);
+        const currency = depositCurrencyInput.value.trim().toUpperCase() || currentCurrency;
+
+        if (currentUserStatus === "restricted" || currentUserStatus === "suspended") {
+          setInlineStatus("Sua conta tem restricoes operacionais. Revise o status antes de tentar um novo deposito.");
+          return;
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+          setInlineStatus(selectedMethod.helperText);
+          return;
+        }
+
+        setInlineStatus(
+          selectedMethod.helperText +
+            " Total projetado apos a entrada: " +
+            formatAmount(currentTotal + amount, currency) +
+            ".",
+        );
+      };
+
       const paintMethodDetails = () => {
         const selectedMethod = getSelectedMethod();
 
@@ -448,12 +549,13 @@ export const renderPaymentsDepositPage = (input: {
         instructionTitle.textContent = selectedMethod.instructionTitle;
         instructionList.innerHTML = selectedMethod.instructions.map((instruction) => "<li>" + instruction + "</li>").join("");
         depositSubmitButton.textContent = selectedMethod.submitLabel;
-        setInlineStatus(selectedMethod.helperText);
 
         const selectedCurrency = selectedMethod.supportedCurrencies[0] || "USD";
         if (!selectedMethod.supportedCurrencies.includes(depositCurrencyInput.value.trim().toUpperCase())) {
           depositCurrencyInput.value = selectedCurrency;
         }
+
+        updateInlinePreview();
       };
 
       const formatAmount = (value, currency) => {
@@ -465,9 +567,20 @@ export const renderPaymentsDepositPage = (input: {
       const paintIdentity = (user) => {
         identityName.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
+        currentUserStatus = user.status || "pending_verification";
+
+        if (currentUserStatus === "active") {
+          depositAccountNote.textContent = "Conta pronta para receber saldo";
+        } else if (currentUserStatus === "pending_verification") {
+          depositAccountNote.textContent = "Deposito liberado, verificacao ainda pendente";
+        } else {
+          depositAccountNote.textContent = "Conta com restricao operacional";
+        }
       };
 
       const paintBalance = (balance) => {
+        currentTotal = Number(balance.total || 0);
+        currentCurrency = balance.currency || "USD";
         walletAvailable.textContent = formatAmount(balance.available, balance.currency);
         walletTotal.textContent = formatAmount(balance.total, balance.currency);
         walletCurrency.textContent = "Contas em " + (balance.currency || "USD");
@@ -498,7 +611,25 @@ export const renderPaymentsDepositPage = (input: {
           return "Informe um valor maior que zero para o deposito.";
         }
 
+        if (currentUserStatus === "restricted" || currentUserStatus === "suspended") {
+          return "Sua conta possui restricoes operacionais e nao pode receber novos depositos agora.";
+        }
+
         return "";
+      };
+
+      const loadMethods = async () => {
+        try {
+          const payload = await sessionClient.fetchJsonWithAuth("/api/payments/methods?type=deposit", {
+            method: "GET",
+          }, "Nao foi possivel carregar os metodos de deposito.");
+
+          mergeCapabilities(payload?.items);
+          rerenderMethodOptions();
+          rerenderMethodCards();
+        } catch (_error) {
+          setInlineStatus("Usando a configuracao local de metodos enquanto as capabilities nao respondem.");
+        }
       };
 
       const loadBalance = async () => {
@@ -518,6 +649,7 @@ export const renderPaymentsDepositPage = (input: {
           const [user] = await Promise.all([
             sessionClient.resolveUser(),
             loadBalance(),
+            loadMethods(),
           ]);
 
           paintIdentity(user);
@@ -562,7 +694,7 @@ export const renderPaymentsDepositPage = (input: {
             body: JSON.stringify({
               amount,
               currency,
-              method,
+              method: method.key,
               description: description || undefined,
             }),
           });
@@ -602,6 +734,14 @@ export const renderPaymentsDepositPage = (input: {
 
       depositMethodInput.addEventListener("change", () => {
         paintMethodDetails();
+      });
+
+      depositAmountInput.addEventListener("input", () => {
+        updateInlinePreview();
+      });
+
+      depositCurrencyInput.addEventListener("input", () => {
+        updateInlinePreview();
       });
 
       loadContext();

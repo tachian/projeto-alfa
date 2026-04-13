@@ -16,5 +16,6 @@ describe("renderPaymentsHistoryPage", () => {
     expect(html).toContain("/api/payments/withdrawals");
     expect(html).toContain('href="/payments/deposit"');
     expect(html).toContain('href="/payments/withdraw"');
+    expect(html).toContain('id="filters-reset"');
   });
 });

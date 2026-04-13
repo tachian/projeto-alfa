@@ -311,6 +311,14 @@ export const handleWebRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/api/payments/methods") {
+    await proxyApiRequest({
+      path: `/payments/methods${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
   if (request.method === "GET" && pathname === "/markets") {
     response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     response.end(

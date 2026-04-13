@@ -307,6 +307,49 @@ describe("web portal routes", () => {
     );
   });
 
+  it("forwards payment methods capabilities requests to the api", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              key: "manual_mock",
+              type: "deposit",
+              availability: "enabled",
+            },
+          ],
+          meta: {
+            count: 1,
+            type: "deposit",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const response = createMockResponse();
+    await handleWebRequest(createMockRequest({
+      method: "GET",
+      url: "/api/payments/methods?type=deposit",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    }) as never, response);
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/methods?type=deposit", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+  });
+
   it("forwards withdrawal creation requests to the api", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
       new Response(JSON.stringify({

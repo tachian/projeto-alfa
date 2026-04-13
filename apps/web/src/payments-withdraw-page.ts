@@ -413,7 +413,7 @@ export const renderPaymentsWithdrawPage = (input: {
       ${renderSessionClientScript()}
       ${renderWalletHeaderScript()}
 
-      const withdrawMethods = ${JSON.stringify(withdrawMethods)};
+      const seedWithdrawMethods = ${JSON.stringify(withdrawMethods)};
       const sessionClient = window.ProjetoAlfaWebSession;
       const syncWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
       const identityName = document.getElementById("identity-name");
@@ -439,6 +439,8 @@ export const renderPaymentsWithdrawPage = (input: {
 
       let currentAvailable = 0;
       let currentCurrency = "USD";
+      let currentUserStatus = "pending_verification";
+      let withdrawMethods = seedWithdrawMethods.slice();
 
       const setStatus = (message, tone = "default") => {
         withdrawStatus.dataset.tone = tone;
@@ -453,6 +455,96 @@ export const renderPaymentsWithdrawPage = (input: {
         return withdrawMethods.find((method) => method.key === withdrawMethodInput.value) || withdrawMethods[0];
       };
 
+      const mergeCapabilities = (items) => {
+        if (!Array.isArray(items) || !items.length) {
+          return;
+        }
+
+        withdrawMethods = seedWithdrawMethods.map((baseMethod) => {
+          const capability = items.find((item) => item?.key === baseMethod.key);
+
+          if (!capability) {
+            return baseMethod;
+          }
+
+          return {
+            ...baseMethod,
+            provider: capability.provider || baseMethod.provider,
+            availability: capability.availability === "enabled" ? "available" : "planned",
+            integrationModel: capability.executionModel === "instant_completion" ? "instant" : "async",
+            supportedCurrencies:
+              Array.isArray(capability.supportedCurrencies) && capability.supportedCurrencies.length
+                ? capability.supportedCurrencies
+                : baseMethod.supportedCurrencies,
+          };
+        });
+      };
+
+      const rerenderMethodOptions = () => {
+        const currentKey = withdrawMethodInput.value;
+        const selectedMethod =
+          withdrawMethods.find((method) => method.key === currentKey) ||
+          withdrawMethods.find((method) => method.availability === "available") ||
+          withdrawMethods[0];
+
+        withdrawMethodInput.innerHTML = withdrawMethods
+          .map((method) =>
+            "<option value=\\"" +
+            method.key +
+            "\\"" +
+            (selectedMethod?.key === method.key ? " selected" : "") +
+            (method.availability !== "available" ? " disabled" : "") +
+            ">" +
+            method.label +
+            (method.availability !== "available" ? " (em breve)" : "") +
+            "</option>",
+          )
+          .join("");
+      };
+
+      const rerenderMethodCards = () => {
+        withdrawMethodCards.innerHTML = withdrawMethods
+          .map((method) =>
+            "<article id=\\"method-card-" +
+            method.key +
+            "\\" class=\\"method-card\\">" +
+            "<div class=\\"method-badge\\">" +
+            method.badge +
+            "</div>" +
+            "<h2 style=\\"margin-top: 12px;\\">" +
+            method.label +
+            "</h2>" +
+            "<p>" +
+            method.description +
+            "</p>" +
+            "</article>",
+          )
+          .join("");
+      };
+
+      const updateInlinePreview = () => {
+        const selectedMethod = getSelectedMethod();
+        const amount = Number(withdrawAmountInput.value);
+        const currency = withdrawCurrencyInput.value.trim().toUpperCase() || currentCurrency;
+
+        if (currentUserStatus !== "active") {
+          setInlineStatus("Sua conta precisa estar ativa para sacar. Conclua a verificacao antes de continuar.");
+          return;
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+          setInlineStatus(selectedMethod.helperText);
+          return;
+        }
+
+        setInlineStatus(
+          selectedMethod.helperText +
+            " Saldo disponivel projetado apos o saque: " +
+            formatAmount(Math.max(currentAvailable - amount, 0), currency) +
+            ".",
+        );
+      };
+
       const paintMethodDetails = () => {
         const selectedMethod = getSelectedMethod();
 
@@ -463,12 +555,13 @@ export const renderPaymentsWithdrawPage = (input: {
         instructionTitle.textContent = selectedMethod.instructionTitle;
         instructionList.innerHTML = selectedMethod.instructions.map((instruction) => "<li>" + instruction + "</li>").join("");
         withdrawSubmitButton.textContent = selectedMethod.submitLabel;
-        setInlineStatus(selectedMethod.helperText);
 
         const selectedCurrency = selectedMethod.supportedCurrencies[0] || "USD";
         if (!selectedMethod.supportedCurrencies.includes(withdrawCurrencyInput.value.trim().toUpperCase())) {
           withdrawCurrencyInput.value = selectedCurrency;
         }
+
+        updateInlinePreview();
       };
 
       const formatAmount = (value, currency) => {
@@ -480,7 +573,8 @@ export const renderPaymentsWithdrawPage = (input: {
       const paintIdentity = (user) => {
         identityName.textContent = user.name || user.email;
         identityMeta.textContent = [user.email, user.phone || "telefone em breve", user.status].join(" • ");
-        withdrawLimitNote.textContent = user.status === "active" ? "Conta apta a solicitar saque" : "Conta precisa estar ativa";
+        currentUserStatus = user.status || "pending_verification";
+        withdrawLimitNote.textContent = currentUserStatus === "active" ? "Conta apta a solicitar saque" : "Conta precisa estar ativa";
       };
 
       const paintBalance = (balance) => {
@@ -525,7 +619,25 @@ export const renderPaymentsWithdrawPage = (input: {
           return "O valor solicitado excede o saldo disponivel para saque.";
         }
 
+        if (currentUserStatus !== "active") {
+          return "A conta precisa estar ativa para saque. Conclua a verificacao antes de continuar.";
+        }
+
         return "";
+      };
+
+      const loadMethods = async () => {
+        try {
+          const payload = await sessionClient.fetchJsonWithAuth("/api/payments/methods?type=withdrawal", {
+            method: "GET",
+          }, "Nao foi possivel carregar os metodos de saque.");
+
+          mergeCapabilities(payload?.items);
+          rerenderMethodOptions();
+          rerenderMethodCards();
+        } catch (_error) {
+          setInlineStatus("Usando a configuracao local de metodos enquanto as capabilities nao respondem.");
+        }
       };
 
       const loadBalance = async () => {
@@ -545,6 +657,7 @@ export const renderPaymentsWithdrawPage = (input: {
           const [user] = await Promise.all([
             sessionClient.resolveUser(),
             loadBalance(),
+            loadMethods(),
           ]);
 
           paintIdentity(user);
@@ -589,6 +702,7 @@ export const renderPaymentsWithdrawPage = (input: {
             body: JSON.stringify({
               amount,
               currency,
+              method: method.key,
               description: description || undefined,
             }),
           });
@@ -628,6 +742,14 @@ export const renderPaymentsWithdrawPage = (input: {
 
       withdrawMethodInput.addEventListener("change", () => {
         paintMethodDetails();
+      });
+
+      withdrawAmountInput.addEventListener("input", () => {
+        updateInlinePreview();
+      });
+
+      withdrawCurrencyInput.addEventListener("input", () => {
+        updateInlinePreview();
       });
 
       loadContext();

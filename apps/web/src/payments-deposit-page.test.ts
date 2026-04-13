@@ -15,7 +15,9 @@ describe("renderPaymentsDepositPage", () => {
     expect(html).toContain('id="deposit-method"');
     expect(html).toContain('id="deposit-amount"');
     expect(html).toContain('id="wallet-available"');
+    expect(html).toContain('id="deposit-account-note"');
     expect(html).toContain("/api/payments/deposits");
+    expect(html).toContain("/api/payments/methods?type=deposit");
     expect(html).toContain("/api/wallet/balance");
     expect(html).toContain("PIX");
     expect(html).toContain("Checkout externo");

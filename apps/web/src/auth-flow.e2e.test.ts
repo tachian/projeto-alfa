@@ -956,4 +956,54 @@ describe("web auth flow e2e", () => {
       ],
     });
   });
+
+  it("forwards payment method capability reads to the existing payments endpoint", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          items: [
+            {
+              key: "manual_mock",
+              type: "deposit",
+              availability: "enabled",
+            },
+          ],
+          meta: {
+            count: 1,
+            type: "deposit",
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+      ),
+    );
+
+    globalThis.fetch = fetchMock;
+
+    const response = await invokeWebRoute({
+      method: "GET",
+      url: "/api/payments/methods?type=deposit",
+      headers: {
+        authorization: "Bearer user-token",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.json()).toMatchObject({
+      items: [
+        {
+          key: "manual_mock",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("/payments/methods?type=deposit", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-token",
+        }),
+      }),
+    );
+  });
 });

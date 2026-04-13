@@ -16,6 +16,7 @@ describe("renderPaymentsWithdrawPage", () => {
     expect(html).toContain('id="wallet-available"');
     expect(html).toContain('id="wallet-reserved"');
     expect(html).toContain("/api/payments/withdrawals");
+    expect(html).toContain("/api/payments/methods?type=withdrawal");
     expect(html).toContain("/api/wallet/balance");
     expect(html).toContain("PIX cash-out");
     expect(html).toContain("Transferencia bancaria");

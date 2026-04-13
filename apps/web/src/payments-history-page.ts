@@ -399,7 +399,10 @@ export const renderPaymentsHistoryPage = (input: {
 
               <div class="filters-actions">
                 <div id="filters-inline-status" class="summary-note">Use os filtros para carregar um recorte do historico.</div>
-                <button type="submit">Atualizar historico</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <button id="filters-reset" type="button" style="background: rgba(15, 23, 42, 0.08); color: var(--ink);">Limpar filtros</button>
+                  <button type="submit">Atualizar historico</button>
+                </div>
               </div>
             </form>
 
@@ -432,6 +435,7 @@ export const renderPaymentsHistoryPage = (input: {
       const historyStatus = document.getElementById("history-status");
       const filtersInlineStatus = document.getElementById("filters-inline-status");
       const filtersForm = document.getElementById("history-filters-form");
+      const filtersResetButton = document.getElementById("filters-reset");
       const typeInput = document.getElementById("filter-type");
       const currencyInput = document.getElementById("filter-currency");
       const limitInput = document.getElementById("filter-limit");
@@ -526,7 +530,7 @@ export const renderPaymentsHistoryPage = (input: {
 
       const renderTable = (items, currency) => {
         if (!items.length) {
-          paymentsTable.innerHTML = '<div class="empty-state">Nenhuma movimentacao encontrada com os filtros atuais.</div>';
+          paymentsTable.innerHTML = '<div class="empty-state">Nenhuma movimentacao encontrada com os filtros atuais. Tente ampliar o limite, trocar a moeda ou limpar os filtros para voltar ao historico completo.</div>';
           return;
         }
 
@@ -617,6 +621,14 @@ export const renderPaymentsHistoryPage = (input: {
 
       filtersForm.addEventListener("submit", async (event) => {
         event.preventDefault();
+        await loadHistory();
+      });
+
+      filtersResetButton.addEventListener("click", async () => {
+        typeInput.value = "";
+        currencyInput.value = "USD";
+        limitInput.value = "20";
+        setInlineStatus("Filtros resetados para o recorte padrao do historico.");
         await loadHistory();
       });
 
