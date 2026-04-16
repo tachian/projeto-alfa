@@ -1,12 +1,24 @@
 import dotenv from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(currentDir, "../.env");
+const envExamplePath = path.resolve(currentDir, "../.env.example");
 
 dotenv.config({ path: envPath });
+
+const loadDotenvFile = (filepath: string): Record<string, string> => {
+  if (!fs.existsSync(filepath)) {
+    return {};
+  }
+
+  return dotenv.parse(fs.readFileSync(filepath, "utf8"));
+};
+
+const envExample = loadDotenvFile(envExamplePath);
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -38,4 +50,7 @@ const envSchema = z.object({
 
 export type AppConfig = z.infer<typeof envSchema>;
 
-export const appConfig = envSchema.parse(process.env);
+export const appConfig = envSchema.parse({
+  ...envExample,
+  ...process.env,
+});
