@@ -71,7 +71,7 @@ const invokeAdminRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 
@@ -1575,3 +1575,4 @@ describe("admin sprint 3 e2e", () => {
     expect(portfolioSettlementsResponse.text()).toContain("Payout total");
   });
 });
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;

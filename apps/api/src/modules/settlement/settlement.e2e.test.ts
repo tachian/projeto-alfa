@@ -565,7 +565,7 @@ class InMemoryExchange
         return right.price - left.price || left.createdAt.getTime() - right.createdAt.getTime();
       });
 
-    let currentOrder = order;
+    const currentOrder = order;
 
     for (const resting of matches) {
       if (currentOrder.remainingQuantity === 0) {

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
-import { LedgerService } from "../ledger/service.js";
+import type { LedgerService } from "../ledger/service.js";
 import { WalletService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({

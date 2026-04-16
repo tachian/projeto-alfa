@@ -44,6 +44,19 @@ const createMockResponse = () => ({
   },
 });
 
+const getFetchInit = (fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, index: number): RequestInit => {
+  const call = fetchMock.mock.calls[index];
+  const init = call?.[1];
+
+  expect(init).toBeDefined();
+
+  return init as RequestInit;
+};
+
+const expectHeadersToMatch = (headers: RequestInit["headers"], expected: Record<string, string>) => {
+  expect(headers).toMatchObject(expected);
+};
+
 const invokeWebRoute = async (url: string) => {
   const response = createMockResponse();
   const request = createMockRequest({
@@ -239,21 +252,21 @@ describe("web portal routes", () => {
       new URL("/wallet/balance", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       new URL("/wallet/entries?limit=100", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 1).headers, {
+      Authorization: "Bearer user-token",
+    });
   });
 
   it("forwards deposit creation requests to the api", async () => {
@@ -293,11 +306,6 @@ describe("web portal routes", () => {
       new URL("/payments/deposits", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-          "Content-Type": "application/json",
-          "Idempotency-Key": "dep-local-001",
-        }),
         body: JSON.stringify({
           amount: "100.00",
           currency: "USD",
@@ -305,6 +313,11 @@ describe("web portal routes", () => {
         }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+      "Content-Type": "application/json",
+      "Idempotency-Key": "dep-local-001",
+    });
   });
 
   it("forwards payment methods capabilities requests to the api", async () => {
@@ -343,11 +356,11 @@ describe("web portal routes", () => {
       new URL("/payments/methods?type=deposit", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+    });
   });
 
   it("forwards withdrawal creation requests to the api", async () => {
@@ -387,11 +400,6 @@ describe("web portal routes", () => {
       new URL("/payments/withdrawals", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-          "Content-Type": "application/json",
-          "Idempotency-Key": "wd-local-001",
-        }),
         body: JSON.stringify({
           amount: "50.00",
           currency: "USD",
@@ -399,6 +407,11 @@ describe("web portal routes", () => {
         }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+      "Content-Type": "application/json",
+      "Idempotency-Key": "wd-local-001",
+    });
   });
 
   it("forwards payment history listing requests to the api", async () => {

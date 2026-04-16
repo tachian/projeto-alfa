@@ -4,7 +4,7 @@ import { writeAuditLog } from "../../lib/audit.js";
 import { prisma } from "../../lib/prisma.js";
 import type { AccountStateServiceContract } from "../account-state/service.js";
 import { AccountStateError } from "../account-state/service.js";
-import { LedgerService } from "../ledger/service.js";
+import type { LedgerService } from "../ledger/service.js";
 import type { RiskServiceContract } from "../risk/service.js";
 import { RiskError } from "../risk/service.js";
 import { PaymentError } from "./errors.js";

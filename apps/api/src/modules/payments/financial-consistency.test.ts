@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../lib/prisma.js";
 import type { AccountStateServiceContract } from "../account-state/service.js";
-import { LedgerService } from "../ledger/service.js";
+import type { LedgerService } from "../ledger/service.js";
 import { PaymentService } from "./service.js";
 
 const decimalToFixed = (value: Prisma.Decimal | number | string) =>
@@ -142,7 +142,7 @@ describe("PaymentService financial consistency", () => {
       idempotencyKey: "dep-100",
     });
 
-    const [payload, options] = vi.mocked(mockedLedgerService.postTransaction).mock.calls[0]!;
+    const [payload, options] = vi.mocked(mockedLedgerService.postTransaction).mock.calls[0];
     const [creditEntry, debitEntry] = payload.entries;
 
     expect(payload.transactionType).toBe("deposit");
@@ -207,7 +207,7 @@ describe("PaymentService financial consistency", () => {
       idempotencyKey: "wd-100",
     });
 
-    const [payload] = vi.mocked(mockedLedgerService.postTransaction).mock.calls[0]!;
+    const [payload] = vi.mocked(mockedLedgerService.postTransaction).mock.calls[0];
     const [debitEntry, creditEntry] = payload.entries;
 
     expect(payload.transactionType).toBe("withdrawal");

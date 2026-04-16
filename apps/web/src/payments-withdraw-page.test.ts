@@ -1,3 +1,4 @@
+import { Script } from "node:vm";
 import { describe, expect, it } from "vitest";
 
 import { renderPaymentsWithdrawPage } from "./payments-withdraw-page.js";
@@ -32,6 +33,6 @@ describe("renderPaymentsWithdrawPage", () => {
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1] ?? "");
 
     expect(scripts).toHaveLength(1);
-    expect(() => new Function(scripts[0]!)).not.toThrow();
+    expect(() => new Script(scripts[0] ?? "")).not.toThrow();
   });
 });

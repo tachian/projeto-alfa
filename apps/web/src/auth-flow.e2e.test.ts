@@ -18,6 +18,8 @@ type MockResponse = {
   end: (payload?: string) => void;
 };
 
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
 const createMockRequest = (input: {
   method: string;
   url: string;
@@ -52,6 +54,19 @@ const createMockResponse = (): MockResponse => ({
   },
 });
 
+const getFetchInit = (fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, index: number): RequestInit => {
+  const call = fetchMock.mock.calls[index];
+  const init = call?.[1];
+
+  expect(init).toBeDefined();
+
+  return init as RequestInit;
+};
+
+const expectHeadersToMatch = (headers: RequestInit["headers"], expected: Record<string, string>) => {
+  expect(headers).toMatchObject(expected);
+};
+
 const invokeWebRoute = async (input: {
   method: string;
   url: string;
@@ -72,7 +87,7 @@ const invokeWebRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 
@@ -818,10 +833,6 @@ describe("web auth flow e2e", () => {
       new URL("/payments/deposits", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-          "Idempotency-Key": "dep-portal-777",
-        }),
         body: JSON.stringify({
           amount: "150.00",
           currency: "USD",
@@ -830,6 +841,10 @@ describe("web auth flow e2e", () => {
         }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+      "Idempotency-Key": "dep-portal-777",
+    });
   });
 
   it("forwards withdrawal creation to the existing payments endpoint", async () => {
@@ -874,11 +889,11 @@ describe("web auth flow e2e", () => {
       new URL("/payments/withdrawals", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+    });
   });
 
   it("forwards payment history reads to the existing listing endpoints", async () => {
@@ -1009,10 +1024,10 @@ describe("web auth flow e2e", () => {
       new URL("/payments/methods?type=deposit", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer user-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer user-token",
+    });
   });
 });

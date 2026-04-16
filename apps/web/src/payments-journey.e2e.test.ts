@@ -18,6 +18,8 @@ type MockResponse = {
   end: (payload?: string) => void;
 };
 
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
 const createMockRequest = (input: {
   method: string;
   url: string;
@@ -52,6 +54,19 @@ const createMockResponse = (): MockResponse => ({
   },
 });
 
+const getFetchInit = (fetchMock: ReturnType<typeof vi.fn<typeof fetch>>, index: number): RequestInit => {
+  const call = fetchMock.mock.calls[index];
+  const init = call?.[1];
+
+  expect(init).toBeDefined();
+
+  return init as RequestInit;
+};
+
+const expectHeadersToMatch = (headers: RequestInit["headers"], expected: Record<string, string>) => {
+  expect(headers).toMatchObject(expected);
+};
+
 const invokeWebRoute = async (input: {
   method: string;
   url: string;
@@ -72,7 +87,7 @@ const invokeWebRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 
@@ -279,9 +294,8 @@ describe("portal payments journey e2e", () => {
       },
     });
     expect(depositMethodsResponse.status).toBe(200);
-    expect(depositMethodsResponse.json()).toMatchObject({
-      items: expect.arrayContaining([expect.objectContaining({ key: "manual_mock" })]),
-    });
+    const depositMethodsPayload = depositMethodsResponse.json() as { items: Array<{ key: string }> };
+    expect(depositMethodsPayload.items.some((item) => item.key === "manual_mock")).toBe(true);
 
     const withdrawalMethodsResponse = await invokeWebRoute({
       method: "GET",
@@ -291,9 +305,8 @@ describe("portal payments journey e2e", () => {
       },
     });
     expect(withdrawalMethodsResponse.status).toBe(200);
-    expect(withdrawalMethodsResponse.json()).toMatchObject({
-      items: expect.arrayContaining([expect.objectContaining({ key: "manual_mock" })]),
-    });
+    const withdrawalMethodsPayload = withdrawalMethodsResponse.json() as { items: Array<{ key: string }> };
+    expect(withdrawalMethodsPayload.items.some((item) => item.key === "manual_mock")).toBe(true);
 
     const depositResponse = await invokeWebRoute({
       method: "POST",
@@ -373,30 +386,26 @@ describe("portal payments journey e2e", () => {
       new URL("/payments/methods?type=deposit", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer access-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 0).headers, {
+      Authorization: "Bearer access-token",
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       new URL("/payments/methods?type=withdrawal", "http://localhost:4000"),
       expect.objectContaining({
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer access-token",
-        }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 1).headers, {
+      Authorization: "Bearer access-token",
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       new URL("/payments/deposits", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer access-token",
-          "Idempotency-Key": "dep-portal-001",
-        }),
         body: JSON.stringify({
           amount: "250.00",
           currency: "USD",
@@ -405,6 +414,10 @@ describe("portal payments journey e2e", () => {
         }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 2).headers, {
+      Authorization: "Bearer access-token",
+      "Idempotency-Key": "dep-portal-001",
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       4,
       new URL("/wallet/balance", "http://localhost:4000"),
@@ -417,10 +430,6 @@ describe("portal payments journey e2e", () => {
       new URL("/payments/withdrawals", "http://localhost:4000"),
       expect.objectContaining({
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer access-token",
-          "Idempotency-Key": "wd-portal-001",
-        }),
         body: JSON.stringify({
           amount: "40.00",
           currency: "USD",
@@ -429,6 +438,10 @@ describe("portal payments journey e2e", () => {
         }),
       }),
     );
+    expectHeadersToMatch(getFetchInit(fetchMock, 4).headers, {
+      Authorization: "Bearer access-token",
+      "Idempotency-Key": "wd-portal-001",
+    });
     expect(fetchMock).toHaveBeenNthCalledWith(
       6,
       new URL("/payments/deposits?currency=USD&limit=20", "http://localhost:4000"),

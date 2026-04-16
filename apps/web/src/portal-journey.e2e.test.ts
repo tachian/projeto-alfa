@@ -18,6 +18,8 @@ type MockResponse = {
   end: (payload?: string) => void;
 };
 
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
 const createMockRequest = (input: {
   method: string;
   url: string;
@@ -72,7 +74,7 @@ const invokeWebRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 

@@ -19,23 +19,36 @@ import { renderRegisterPage } from "./register-page.js";
 import { renderWalletPage } from "./wallet-page.js";
 import { renderWorkspacePage } from "./workspace-page.js";
 
-const readJsonBody = async (request: IncomingMessage) => {
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
+const readJsonBody = async (request: IncomingMessage): Promise<unknown> => {
   const chunks: Buffer[] = [];
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    if (Buffer.isBuffer(chunk)) {
+      chunks.push(chunk);
+      continue;
+    }
+
+    if (chunk instanceof Uint8Array) {
+      chunks.push(Buffer.from(chunk));
+      continue;
+    }
+
+    chunks.push(Buffer.from(String(chunk)));
   }
 
   if (!chunks.length) {
     return null;
   }
 
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return parseJson(Buffer.concat(chunks).toString("utf8"));
 };
 
-export const createWebServer = () => createServer(async (request, response) => {
-  await handleWebRequest(request, response);
-});
+export const createWebServer = () =>
+  createServer((request, response) => {
+    void handleWebRequest(request, response);
+  });
 
 export const handleWebRequest = async (
   request: IncomingMessage,
