@@ -105,17 +105,16 @@ const PAYMENT_METHODS_BASE: Array<Omit<PaymentMethodRecord, "availability">> = [
 ];
 
 export const listPaymentMethods = (type?: PaymentType): PaymentMethodRecord[] => {
-  return PAYMENT_METHODS_BASE.filter((method) => !type || method.type === type).map((method): PaymentMethodRecord => ({
-    ...method,
-    availability:
-      method.type === "deposit"
-        ? ENABLED_DEPOSIT_METHODS.has(method.key)
-          ? ("enabled" as const)
-          : ("planned" as const)
-        : ENABLED_WITHDRAWAL_METHODS.has(method.key)
-          ? ("enabled" as const)
-          : ("planned" as const),
-  }));
+  return PAYMENT_METHODS_BASE.filter((method) => !type || method.type === type).map((method): PaymentMethodRecord => {
+    const isDepositType = method.type === "deposit";
+    const enabledMethods = isDepositType ? ENABLED_DEPOSIT_METHODS : ENABLED_WITHDRAWAL_METHODS;
+    const availability: PaymentMethodAvailability = enabledMethods.has(method.key) ? "enabled" : "planned";
+
+    return {
+      ...method,
+      availability,
+    };
+  });
 };
 
 export const resolvePaymentMethod = (input: {
