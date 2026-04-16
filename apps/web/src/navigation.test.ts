@@ -22,7 +22,7 @@ describe("web navigation", () => {
     });
 
     expect(html).toContain("Navegacao principal do portal");
-    expect(html).toContain("Explorar");
+    expect(html).not.toContain("Explorar");
     expect(html).toContain('href="/markets" aria-current="page"');
     expect(html).toContain('href="/wallet"');
     expect(html).toContain('href="/payments"');

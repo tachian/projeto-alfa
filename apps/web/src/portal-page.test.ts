@@ -26,5 +26,6 @@ describe("renderPortalPage", () => {
     expect(html).toContain("Proxima etapa: integrar o formulario real.");
     expect(html).toContain("Cadastro");
     expect(html).toContain('href="/register" aria-current="page"');
+    expect(html).toContain("/api/wallet/balance");
   });
 });

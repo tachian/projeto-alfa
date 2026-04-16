@@ -82,8 +82,8 @@ export const resolveWebNavSection = (pathname: string): WebNavSection => {
 export const renderWebChromeStyles = () => `
   .topbar {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(240px, 0.85fr) auto;
-    gap: 18px;
+    grid-template-columns: auto minmax(0, 1fr) minmax(240px, auto) auto;
+    gap: 14px;
     align-items: center;
     margin-bottom: 24px;
     padding: 18px 20px;
@@ -110,27 +110,22 @@ export const renderWebChromeStyles = () => `
 
   .nav-group {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 8px;
     align-items: center;
-  }
-
-  .nav-group-label {
-    width: 100%;
-    color: #64748b;
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    justify-content: center;
+    min-width: 0;
   }
 
   .nav-group a {
-    padding: 10px 14px;
+    padding: 10px 12px;
     border-radius: 999px;
     border: 1px solid rgba(15, 23, 42, 0.08);
     background: rgba(255, 255, 255, 0.72);
     color: #475569;
     text-decoration: none;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .nav-group a[aria-current="page"] {
@@ -205,6 +200,11 @@ export const renderWebChromeStyles = () => `
       grid-template-columns: 1fr;
     }
 
+    .nav-group {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+
     .nav-cta {
       justify-content: flex-start;
     }
@@ -226,7 +226,6 @@ export const renderWebNavigation = (input: {
       </div>
 
       <div class="nav-group" aria-label="Navegacao principal do portal">
-        <div class="nav-group-label">Explorar</div>
         ${renderLinks(PUBLIC_ITEMS, activeSection)}
         ${renderLinks(ACCESS_ITEMS, activeSection)}
       </div>

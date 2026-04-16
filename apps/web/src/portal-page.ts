@@ -60,7 +60,7 @@ export const renderPortalPage = (input: {
       }
 
       .shell {
-        width: min(1240px, calc(100% - 32px));
+        width: min(1520px, calc(100% - 32px));
         margin: 0 auto;
         padding: 24px 0 64px;
       }
@@ -274,7 +274,7 @@ export const renderPortalPage = (input: {
 
       <script>
         ${renderSessionClientScript()}
-        ${input.authMode === "protected" ? renderWalletHeaderScript() : ""}
+        ${renderWalletHeaderScript()}
 
         ${input.authMode === "protected"
           ? `

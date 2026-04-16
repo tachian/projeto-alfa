@@ -38,7 +38,7 @@ export const renderProfilePage = (input: {
       }
 
       .shell {
-        width: min(1180px, calc(100% - 32px));
+        width: min(1520px, calc(100% - 32px));
         margin: 0 auto;
         padding: 24px 0 64px;
       }

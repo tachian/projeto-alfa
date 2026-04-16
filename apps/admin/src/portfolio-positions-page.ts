@@ -37,7 +37,7 @@ export const renderPortfolioPositionsPage = (input: {
       }
 
       .shell {
-        width: min(1240px, calc(100% - 32px));
+        width: calc(100% - 32px);
         margin: 0 auto;
         padding: 24px 0 64px;
       }

@@ -13,6 +13,7 @@ describe("renderMarketsPage", () => {
     expect(html).toContain('id="filters-form"');
     expect(html).toContain('id="markets-grid"');
     expect(html).toContain("/api/markets");
+    expect(html).toContain("/api/wallet/balance");
     expect(html).toContain("Abrir detalhe");
   });
 });

@@ -1,5 +1,6 @@
 import { escapeHtml } from "./html.js";
-import { renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderWalletHeaderScript, renderWebChromeStyles, renderWebNavigation } from "./navigation.js";
+import { renderSessionClientScript } from "./session.js";
 
 export const renderMarketsPage = (input: {
   appName: string;
@@ -35,7 +36,7 @@ export const renderMarketsPage = (input: {
       }
 
       .shell {
-        width: min(1180px, calc(100% - 32px));
+        width: min(1520px, calc(100% - 32px));
         margin: 0 auto;
         padding: 24px 0 64px;
       }
@@ -288,6 +289,9 @@ export const renderMarketsPage = (input: {
     </main>
 
     <script>
+      ${renderSessionClientScript()}
+      ${renderWalletHeaderScript()}
+
       const form = document.getElementById("filters-form");
       const statusSelect = document.getElementById("filter-status");
       const categoryInput = document.getElementById("filter-category");

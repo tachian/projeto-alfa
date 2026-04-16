@@ -22,4 +22,16 @@ describe("renderPaymentsWithdrawPage", () => {
     expect(html).toContain("Transferencia bancaria");
     expect(html).toContain("Em breve");
   });
+
+  it("emits a syntactically valid browser script", () => {
+    const html = renderPaymentsWithdrawPage({
+      appName: "projeto-alfa-web",
+      pathname: "/payments/withdraw",
+    });
+
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1] ?? "");
+
+    expect(scripts).toHaveLength(1);
+    expect(() => new Function(scripts[0]!)).not.toThrow();
+  });
 });

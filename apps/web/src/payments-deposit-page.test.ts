@@ -23,4 +23,16 @@ describe("renderPaymentsDepositPage", () => {
     expect(html).toContain("Checkout externo");
     expect(html).toContain("Em breve");
   });
+
+  it("emits a syntactically valid browser script", () => {
+    const html = renderPaymentsDepositPage({
+      appName: "projeto-alfa-web",
+      pathname: "/payments/deposit",
+    });
+
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1] ?? "");
+
+    expect(scripts).toHaveLength(1);
+    expect(() => new Function(scripts[0]!)).not.toThrow();
+  });
 });

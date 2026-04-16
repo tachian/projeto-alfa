@@ -795,12 +795,14 @@ describe("web auth flow e2e", () => {
       method: "POST",
       url: "/api/payments/deposits",
       headers: {
-        authorization: "Bearer user-token",
+        Authorization: "Bearer user-token",
+        "Idempotency-Key": "dep-portal-777",
         "content-type": "application/json",
       },
       body: {
         amount: "150.00",
         currency: "USD",
+        method: "manual_mock",
         description: "Top-up local",
       },
     });
@@ -818,6 +820,13 @@ describe("web auth flow e2e", () => {
         method: "POST",
         headers: expect.objectContaining({
           Authorization: "Bearer user-token",
+          "Idempotency-Key": "dep-portal-777",
+        }),
+        body: JSON.stringify({
+          amount: "150.00",
+          currency: "USD",
+          method: "manual_mock",
+          description: "Top-up local",
         }),
       }),
     );

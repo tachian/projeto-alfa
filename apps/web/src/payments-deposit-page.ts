@@ -44,7 +44,7 @@ export const renderPaymentsDepositPage = (input: {
       }
 
       .shell {
-        width: min(1180px, calc(100% - 32px));
+        width: min(1520px, calc(100% - 32px));
         margin: 0 auto;
         padding: 24px 0 64px;
       }
@@ -410,7 +410,7 @@ export const renderPaymentsDepositPage = (input: {
 
       const seedDepositMethods = ${JSON.stringify(depositMethods)};
       const sessionClient = window.ProjetoAlfaWebSession;
-      const syncWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
+      const refreshWalletHeader = window.ProjetoAlfaWebSyncWalletHeader;
       const identityName = document.getElementById("identity-name");
       const identityMeta = document.getElementById("identity-meta");
       const logoutButton = document.getElementById("logout-button");
@@ -712,8 +712,8 @@ export const renderPaymentsDepositPage = (input: {
           }
 
           await loadBalance();
-          if (typeof syncWalletHeader === "function") {
-            await syncWalletHeader();
+          if (typeof refreshWalletHeader === "function") {
+            await refreshWalletHeader();
           }
 
           depositAmountInput.value = "";

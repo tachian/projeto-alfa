@@ -44,14 +44,32 @@ export const handleWebRequest = async (
     end: (payload?: string) => void;
   },
 ) => {
+  const getRequestHeader = (name: string) => {
+    const target = name.toLowerCase();
+
+    for (const [headerName, headerValue] of Object.entries(request.headers)) {
+      if (headerName.toLowerCase() !== target) {
+        continue;
+      }
+
+      if (Array.isArray(headerValue)) {
+        return headerValue[0];
+      }
+
+      return headerValue;
+    }
+
+    return undefined;
+  };
+
   const proxyApiRequest = async (input: {
     path: string;
     method: string;
     body?: unknown;
   }) => {
     try {
-      const authorization = request.headers.authorization;
-      const idempotencyKey = request.headers["idempotency-key"];
+      const authorization = getRequestHeader("authorization");
+      const idempotencyKey = getRequestHeader("idempotency-key");
       const upstreamResponse = await fetch(new URL(input.path, webConfig.API_URL), {
         method: input.method,
         headers: {
