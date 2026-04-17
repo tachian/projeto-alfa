@@ -4,10 +4,11 @@ import { writeAuditLog } from "../../lib/audit.js";
 import { prisma } from "../../lib/prisma.js";
 import type { AccountStateServiceContract } from "../account-state/service.js";
 import { AccountStateError } from "../account-state/service.js";
-import { LedgerService } from "../ledger/service.js";
+import type { LedgerService } from "../ledger/service.js";
 import type { RiskServiceContract } from "../risk/service.js";
 import { RiskError } from "../risk/service.js";
-import { PaymentError, PaymentService } from "./service.js";
+import { PaymentError } from "./errors.js";
+import { PaymentService } from "./service.js";
 
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
@@ -151,6 +152,32 @@ describe("PaymentService", () => {
         currency: "USD",
         userUuid: "user-uuid",
         idempotencyKey: "dep-001",
+        provider: "manual",
+        paymentMethod: "manual_mock",
+        status: "completed",
+      },
+    });
+  });
+
+  it("lists payment methods with enabled and planned capabilities", async () => {
+    await expect(paymentService.listMethods({ type: "deposit" })).resolves.toEqual({
+      items: expect.arrayContaining([
+        expect.objectContaining({
+          key: "manual_mock",
+          type: "deposit",
+          availability: "enabled",
+          executionModel: "instant_completion",
+        }),
+        expect.objectContaining({
+          key: "pix",
+          type: "deposit",
+          availability: "planned",
+          executionModel: "async_confirmation",
+        }),
+      ]),
+      meta: {
+        count: 3,
+        type: "deposit",
       },
     });
   });

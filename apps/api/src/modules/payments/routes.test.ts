@@ -7,8 +7,8 @@ import { appConfig } from "../../config.js";
 import { buildServer } from "../../server.js";
 import type { AuthServiceContract } from "../auth/service.js";
 import { signAccessToken } from "../auth/tokens.js";
+import { PaymentError } from "./errors.js";
 import type { PaymentServiceContract } from "./service.js";
-import { PaymentError } from "./service.js";
 
 const testDependenciesPlugin: FastifyPluginAsync = fp(async (fastify) => {
   fastify.decorate("appConfig", appConfig);
@@ -47,6 +47,7 @@ describe("payment routes", () => {
     createDeposit: vi.fn(),
     createWithdrawal: vi.fn(),
     listPayments: vi.fn(),
+    listMethods: vi.fn(),
   };
 
   beforeEach(() => {
@@ -108,6 +109,7 @@ describe("payment routes", () => {
       amount: 100,
       description: "Top-up",
       currency: undefined,
+      method: undefined,
       idempotencyKey: "dep-001",
     });
     expect(response.json()).toEqual({
@@ -168,6 +170,85 @@ describe("payment routes", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({
       message: "Saldo insuficiente para saque.",
+    });
+  });
+
+  it("returns payment methods capabilities without requiring authentication", async () => {
+    vi.mocked(paymentService.listMethods).mockResolvedValue({
+      items: [
+        {
+          key: "manual_mock",
+          type: "deposit",
+          provider: "manual",
+          availability: "enabled",
+          executionModel: "instant_completion",
+          supportedCurrencies: ["USD"],
+          idempotencySupported: true,
+          asyncSettlement: false,
+          description: "Metodo local de desenvolvimento que liquida o deposito imediatamente no ledger.",
+        },
+        {
+          key: "pix",
+          type: "deposit",
+          provider: "pix_mock",
+          availability: "planned",
+          executionModel: "async_confirmation",
+          supportedCurrencies: ["USD"],
+          idempotencySupported: true,
+          asyncSettlement: true,
+          description: "Fluxo preparado para PIX com confirmacao assincrona por webhook ou conciliacao.",
+        },
+      ],
+      meta: {
+        count: 2,
+        type: "deposit",
+      },
+    });
+
+    const server = await buildServer({
+      dependenciesPlugin: testDependenciesPlugin,
+      authService,
+      paymentService,
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/payments/methods?type=deposit",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(paymentService.listMethods)).toHaveBeenCalledWith({
+      type: "deposit",
+    });
+    expect(response.json()).toEqual({
+      items: [
+        {
+          key: "manual_mock",
+          type: "deposit",
+          provider: "manual",
+          availability: "enabled",
+          executionModel: "instant_completion",
+          supportedCurrencies: ["USD"],
+          idempotencySupported: true,
+          asyncSettlement: false,
+          description: "Metodo local de desenvolvimento que liquida o deposito imediatamente no ledger.",
+        },
+        {
+          key: "pix",
+          type: "deposit",
+          provider: "pix_mock",
+          availability: "planned",
+          executionModel: "async_confirmation",
+          supportedCurrencies: ["USD"],
+          idempotencySupported: true,
+          asyncSettlement: true,
+          description: "Fluxo preparado para PIX com confirmacao assincrona por webhook ou conciliacao.",
+        },
+      ],
+      meta: {
+        count: 2,
+        type: "deposit",
+      },
     });
   });
 

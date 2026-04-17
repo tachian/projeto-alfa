@@ -1,12 +1,15 @@
+import type { IdentityVerification } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { writeAuditLog } from "../../lib/audit.js";
 import { createKycProvider } from "./providers/index.js";
 import type { KycProviderContract } from "./providers/types.js";
 
+type KycPersistenceRecord = IdentityVerification;
+
 const prismaKyc = prisma as typeof prisma & {
   identityVerification: {
-    create: (args: unknown) => Promise<any>;
-    findFirst: (args: unknown) => Promise<any>;
+    create: (args: unknown) => Promise<KycPersistenceRecord>;
+    findFirst: (args: unknown) => Promise<KycPersistenceRecord | null>;
   };
 };
 
@@ -68,25 +71,7 @@ const maskDocumentNumber = (documentNumber: string) => {
   return `${"*".repeat(documentNumber.length - 4)}${documentNumber.slice(-4)}`;
 };
 
-const mapVerification = (verification: {
-  uuid: string;
-  userUuid: string;
-  provider: string;
-  providerReference: string | null;
-  verificationType: string;
-  status: string;
-  amlStatus: string;
-  riskLevel: string;
-  fullName: string;
-  documentType: string;
-  documentNumber: string;
-  countryCode: string;
-  birthDate: Date | null;
-  reviewedAt: Date | null;
-  requirements: unknown;
-  createdAt: Date;
-  updatedAt: Date;
-}): KycVerificationRecord => ({
+const mapVerification = (verification: KycPersistenceRecord): KycVerificationRecord => ({
   uuid: verification.uuid,
   userUuid: verification.userUuid,
   provider: verification.provider,

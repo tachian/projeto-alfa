@@ -1,12 +1,24 @@
 import dotenv from "dotenv";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(currentDir, "../.env");
+const envExamplePath = path.resolve(currentDir, "../.env.example");
 
 dotenv.config({ path: envPath });
+
+const loadDotenvFile = (filepath: string): Record<string, string> => {
+  if (!fs.existsSync(filepath)) {
+    return {};
+  }
+
+  return dotenv.parse(fs.readFileSync(filepath, "utf8"));
+};
+
+const envExample = loadDotenvFile(envExamplePath);
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -31,8 +43,14 @@ const envSchema = z.object({
   RISK_MAX_GROSS_EXPOSURE_PER_MARKET: z.coerce.number().int().positive().default(5000),
   RISK_MAX_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(10000),
   RISK_MAX_DAILY_WITHDRAWAL_AMOUNT: z.coerce.number().positive().default(25000),
+  PAYMENTS_ENABLED_DEPOSIT_METHODS: z.string().default("manual_mock"),
+  PAYMENTS_ENABLED_WITHDRAWAL_METHODS: z.string().default("manual_mock"),
+  PAYMENTS_SUPPORTED_CURRENCIES: z.string().default("USD"),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;
 
-export const appConfig = envSchema.parse(process.env);
+export const appConfig = envSchema.parse({
+  ...envExample,
+  ...process.env,
+});

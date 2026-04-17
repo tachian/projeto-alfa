@@ -43,7 +43,9 @@ describe("KycService", () => {
   it("creates a verification using the provider result", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       uuid: "user-uuid",
+      name: null,
       email: "user@example.com",
+      phone: null,
       passwordHash: "hash",
       role: "user",
       status: "active",

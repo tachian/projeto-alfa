@@ -1,13 +1,26 @@
 import { escapeHtml } from "./html.js";
+import { renderAdminChromeStyles, renderAdminNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderMarketPage = (input: {
   appName: string;
   marketUuid: string;
 }) => {
+  const marketStatusOptions = [
+    "draft",
+    "open",
+    "suspended",
+    "closed",
+    "resolving",
+    "resolved",
+    "cancelled",
+  ];
   const title = `Mercado ${input.marketUuid} | ${input.appName}`;
   const safeMarketUuid = escapeHtml(input.marketUuid);
   const safeAppName = escapeHtml(input.appName);
+  const statusOptionsMarkup = marketStatusOptions
+    .map((status) => `<option value="${status}">${status}</option>`)
+    .join("");
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -47,10 +60,12 @@ export const renderMarketPage = (input: {
       }
 
       .shell {
-        width: min(1280px, calc(100% - 32px));
+        width: calc(100% - 32px);
         margin: 0 auto;
-        padding: 40px 0 64px;
+        padding: 24px 0 64px;
       }
+
+      ${renderAdminChromeStyles()}
 
       .hero,
       .panel {
@@ -322,6 +337,31 @@ export const renderMarketPage = (input: {
         margin-top: 18px;
       }
 
+      .quick-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .quick-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        text-decoration: none;
+        font-weight: 700;
+        color: white;
+        background: var(--accent);
+      }
+
+      .quick-link.secondary {
+        color: var(--ink);
+        background: rgba(27, 21, 16, 0.08);
+      }
+
       textarea,
       input,
       button {
@@ -448,6 +488,8 @@ export const renderMarketPage = (input: {
   </head>
   <body>
     <main class="shell">
+      ${renderAdminNavigation({ appName: input.appName, pathname: `/markets/${input.marketUuid}` })}
+
       <section class="hero">
         <div class="hero-top">
           <div>
@@ -478,6 +520,11 @@ export const renderMarketPage = (input: {
               <div class="status-stack">
                 <span class="pill" id="market-status-pill">status</span>
                 <span class="pill" id="socket-status-pill" data-status="connecting">tempo real</span>
+              </div>
+              <div class="quick-links">
+                <a class="quick-link" href="/trading/new?marketUuid=${safeMarketUuid}">Nova ordem neste mercado</a>
+                <a class="quick-link secondary" href="/trading/orders?marketUuid=${safeMarketUuid}">Ver ordens deste mercado</a>
+                <a class="quick-link secondary" href="/portfolio/positions?marketUuid=${safeMarketUuid}">Ver posicoes deste mercado</a>
               </div>
               <div class="meta-grid">
                 <div class="stat">
@@ -669,7 +716,7 @@ export const renderMarketPage = (input: {
                   <label class="field-label">Categoria<input name="category" required /></label>
                 </div>
                 <div class="form-grid two">
-                  <label class="field-label">Status<input name="status" required /></label>
+                  <label class="field-label">Status<select name="status" required>${statusOptionsMarkup}</select></label>
                   <label class="field-label">Tipo<input name="outcomeType" required /></label>
                 </div>
                 <div class="form-grid two">
@@ -823,61 +870,30 @@ export const renderMarketPage = (input: {
         setAdminStatus("Acesso restrito a administradores.", "danger");
       };
 
-      const fetchJson = async (url, options = {}) => {
-        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.headers ?? {}),
-          },
-        });
-
-        const payloadText = await response.text();
-        const payload = payloadText ? JSON.parse(payloadText) : null;
-
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
-        }
-
-        return payload;
-      };
-
       const bootstrapSession = async () => {
-        const accessToken = window.ProjetoAlfaSession.getAccessToken();
-
-        if (!accessToken) {
-          redirectToLogin();
-          return false;
-        }
-
         try {
-          const payload = await fetchJson("/api/auth/me", {
-            method: "GET",
-          });
-
-          try {
-            window.ProjetoAlfaSession.requireAdminSession(payload.user);
-          } catch (error) {
-            if (error?.code === "forbidden") {
-              window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied(payload.user);
-              return false;
-            }
-
-            throw error;
-          }
-
-          window.ProjetoAlfaSession.updateUser(payload.user);
+          const user = await window.ProjetoAlfaSession.resolveAdminUser();
           setIdentity({
-            email: payload.user.email,
-            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+            email: user.email,
+            meta: "Role: " + user.role + " | Status: " + user.status,
           });
           setAdminStatus("Sessao validada. Carregando operacao do mercado...", "success");
           return true;
         } catch (error) {
+          const cachedUser = window.ProjetoAlfaSession.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
+            showAccessDenied(cachedUser);
+            return false;
+          }
+
+          if (error?.code === "unauthenticated") {
+            redirectToLogin("expired");
+            return false;
+          }
+
           window.ProjetoAlfaSession.clear();
-          const reason = error?.code === "unauthenticated" ? "expired" : "";
-          redirectToLogin(reason);
+          redirectToLogin();
           return false;
         }
       };
@@ -1025,12 +1041,12 @@ export const renderMarketPage = (input: {
       };
 
       const loadOrderBook = async () => {
-        const payload = await fetchJson("/api/markets/" + marketUuid + "/book");
+        const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/markets/" + marketUuid + "/book", { method: "GET" });
         renderOrderBook(payload.orderBook);
       };
 
       const loadRecentTrades = async () => {
-        const payload = await fetchJson("/api/markets/" + marketUuid + "/trades?limit=20");
+        const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/markets/" + marketUuid + "/trades?limit=20", { method: "GET" });
         renderTrades(payload.items ?? []);
       };
 
@@ -1041,7 +1057,7 @@ export const renderMarketPage = (input: {
         }
 
         try {
-          const payload = await fetchJson("/api/orders?marketUuid=" + encodeURIComponent(marketUuid) + "&limit=20");
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/orders?marketUuid=" + encodeURIComponent(marketUuid) + "&limit=20", { method: "GET" });
           renderUserOrders(payload.items ?? []);
         } catch (error) {
           setAdminStatus(error.message, "danger");
@@ -1056,7 +1072,7 @@ export const renderMarketPage = (input: {
         }
 
         try {
-          const payload = await fetchJson("/api/admin/markets/" + marketUuid + "/resolutions");
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid + "/resolutions", { method: "GET" });
           renderResolutions(payload.items ?? []);
         } catch (error) {
           setAdminStatus(error.message, "danger");
@@ -1071,7 +1087,7 @@ export const renderMarketPage = (input: {
         }
 
         try {
-          const payload = await fetchJson("/api/admin/markets/" + marketUuid + "/settlement-runs");
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid + "/settlement-runs", { method: "GET" });
           renderSettlementRuns(payload.items ?? []);
         } catch (error) {
           setAdminStatus(error.message, "danger");
@@ -1101,7 +1117,7 @@ export const renderMarketPage = (input: {
         setAdminStatus("Salvando alteracoes...");
 
         try {
-          const result = await fetchJson("/api/admin/markets/" + marketUuid, {
+          const result = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid, {
             method: "PATCH",
             body: JSON.stringify(payload),
           });
@@ -1126,7 +1142,7 @@ export const renderMarketPage = (input: {
         setAdminStatus("Registrando resolucao manual...");
 
         try {
-          await fetchJson("/api/admin/markets/" + marketUuid + "/resolutions", {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid + "/resolutions", {
             method: "POST",
             body: JSON.stringify(payload),
           });
@@ -1156,7 +1172,7 @@ export const renderMarketPage = (input: {
 
         try {
           const payload = readSettlementRunPayload();
-          await fetchJson("/api/admin/markets/" + marketUuid + "/settlement-runs", {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid + "/settlement-runs", {
             method: "POST",
             body: JSON.stringify(payload),
           });
@@ -1177,7 +1193,7 @@ export const renderMarketPage = (input: {
 
         try {
           const payload = readSettlementRunPayload();
-          await fetchJson("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid, {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid, {
             method: "PATCH",
             body: JSON.stringify({
               status: payload.status,
@@ -1202,7 +1218,7 @@ export const renderMarketPage = (input: {
         setAdminStatus("Executando o ultimo settlement run...");
 
         try {
-          await fetchJson("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid + "/execute", {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/settlement-runs/" + recentSettlementRuns[0].uuid + "/execute", {
             method: "POST",
           });
           await Promise.all([loadSettlementRuns(), loadMarket()]);

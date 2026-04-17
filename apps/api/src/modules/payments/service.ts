@@ -5,6 +5,10 @@ import { recordBusinessOperationMetric } from "../../lib/metrics.js";
 import { AccountStateError, AccountStateService, type AccountStateServiceContract } from "../account-state/service.js";
 import { LedgerError, LedgerService } from "../ledger/service.js";
 import { RiskError, RiskService, type RiskServiceContract } from "../risk/service.js";
+import { PaymentError } from "./errors.js";
+import { extractPaymentMethodFromMetadata, listPaymentMethods, resolvePaymentMethod, type PaymentMethodRecord } from "./methods.js";
+
+export type { PaymentMethodRecord } from "./methods.js";
 
 const DEFAULT_CURRENCY = "USD";
 const DEFAULT_LIST_LIMIT = 50;
@@ -33,6 +37,7 @@ export type CreatePaymentInput = {
   userUuid: string;
   amount: Prisma.Decimal | number | string;
   currency?: string;
+  method?: string;
   description?: string;
   idempotencyKey?: string;
   metadata?: Prisma.InputJsonValue;
@@ -55,20 +60,23 @@ export type ListPaymentsResult = {
   };
 };
 
+export type ListPaymentMethodsInput = {
+  type?: PaymentType;
+};
+
+export type ListPaymentMethodsResult = {
+  items: PaymentMethodRecord[];
+  meta: {
+    count: number;
+    type: PaymentType | "all";
+  };
+};
+
 export interface PaymentServiceContract {
   createDeposit(input: CreatePaymentInput): Promise<PaymentRecord>;
   createWithdrawal(input: CreatePaymentInput): Promise<PaymentRecord>;
   listPayments(input: ListPaymentsInput): Promise<ListPaymentsResult>;
-}
-
-export class PaymentError extends Error {
-  constructor(
-    message: string,
-    public readonly statusCode: number,
-  ) {
-    super(message);
-    this.name = "PaymentError";
-  }
+  listMethods(input?: ListPaymentMethodsInput): Promise<ListPaymentMethodsResult>;
 }
 
 const toDecimal = (value: Prisma.Decimal | number | string) => {
@@ -163,10 +171,27 @@ export class PaymentService implements PaymentServiceContract {
     };
   }
 
+  async listMethods(input: ListPaymentMethodsInput = {}): Promise<ListPaymentMethodsResult> {
+    const items = listPaymentMethods(input.type);
+
+    return {
+      items,
+      meta: {
+        count: items.length,
+        type: input.type ?? "all",
+      },
+    };
+  }
+
   private async createPayment(input: CreatePaymentInput & { type: PaymentType }): Promise<PaymentRecord> {
     const amount = normalizePositiveAmount(input.amount);
     const currency = (input.currency ?? DEFAULT_CURRENCY).toUpperCase();
     const idempotencyKey = input.idempotencyKey?.trim() || undefined;
+    const paymentMethod = resolvePaymentMethod({
+      type: input.type,
+      key: input.method,
+      currency,
+    });
 
     if (input.type === "deposit") {
       await this.accountStateService.assertCanCreateDeposit(input.userUuid);
@@ -187,7 +212,10 @@ export class PaymentService implements PaymentServiceContract {
         if (
           !existingPayment.amount.equals(amount) ||
           existingPayment.currency !== currency ||
-          existingPayment.description !== (input.description ?? null)
+          existingPayment.description !== (input.description ?? null) ||
+          (extractPaymentMethodFromMetadata(existingPayment.metadata) ??
+            (existingPayment.provider === "manual" ? "manual_mock" : null)) !==
+            paymentMethod.key
         ) {
           throw new PaymentError("Idempotency-Key ja utilizado com payload diferente.", 409);
         }
@@ -227,14 +255,25 @@ export class PaymentService implements PaymentServiceContract {
             userUuid: input.userUuid,
             type: input.type,
             status: "pending",
-            provider: "manual",
+            provider: paymentMethod.provider,
             idempotencyKey,
             amount,
             currency,
             description: input.description,
-            metadata: input.metadata,
+            metadata: {
+              ...(input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+                ? (input.metadata as Prisma.InputJsonObject)
+                : {}),
+              paymentMethod: paymentMethod.key,
+              executionModel: paymentMethod.executionModel,
+              asyncSettlement: paymentMethod.asyncSettlement,
+            },
           },
         });
+
+        if (paymentMethod.executionModel === "async_confirmation") {
+          return payment;
+        }
 
         const ledgerResult = await this.ledgerService.postTransaction(
           {
@@ -243,10 +282,14 @@ export class PaymentService implements PaymentServiceContract {
             referenceUuid: payment.uuid,
             description:
               input.description ??
-              (input.type === "deposit" ? "Manual mock deposit" : "Manual mock withdrawal"),
+              (input.type === "deposit"
+                ? `${paymentMethod.key} deposit`
+                : `${paymentMethod.key} withdrawal`),
             metadata: {
               paymentType: input.type,
-              provider: "manual",
+              provider: paymentMethod.provider,
+              paymentMethod: paymentMethod.key,
+              executionModel: paymentMethod.executionModel,
               idempotencyKey: idempotencyKey ?? null,
             },
             entries:
@@ -309,7 +352,7 @@ export class PaymentService implements PaymentServiceContract {
       });
 
       await writeAuditLog({
-        action: `payments.${input.type}.completed`,
+        action: `payments.${input.type}.${completedPayment.status}`,
         targetType: "payment",
         targetUuid: completedPayment.uuid,
         payload: {
@@ -317,6 +360,11 @@ export class PaymentService implements PaymentServiceContract {
           currency: completedPayment.currency,
           userUuid: completedPayment.userUuid,
           idempotencyKey: completedPayment.idempotencyKey,
+          provider: completedPayment.provider,
+          paymentMethod:
+            extractPaymentMethodFromMetadata(completedPayment.metadata) ??
+            (completedPayment.provider === "manual" ? "manual_mock" : null),
+          status: completedPayment.status,
         },
       });
 

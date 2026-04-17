@@ -1,9 +1,10 @@
 import { escapeHtml } from "./html.js";
-
+import { renderAdminChromeStyles, renderAdminNavigation } from "./navigation.js";
 import { renderSessionClientScript } from "./session.js";
 
 export const renderAdminDashboardPage = (input: {
   appName: string;
+  pathname: string;
 }) => {
   const safeAppName = escapeHtml(input.appName);
 
@@ -45,10 +46,12 @@ export const renderAdminDashboardPage = (input: {
       }
 
       .shell {
-        width: min(1240px, calc(100% - 32px));
+        width: calc(100% - 32px);
         margin: 0 auto;
-        padding: 32px 0 64px;
+        padding: 24px 0 64px;
       }
+
+      ${renderAdminChromeStyles()}
 
       .hero, .panel {
         border-radius: 28px;
@@ -345,11 +348,13 @@ export const renderAdminDashboardPage = (input: {
   </head>
   <body>
     <main class="shell">
+      ${renderAdminNavigation({ appName: input.appName, pathname: input.pathname })}
+
       <section class="hero">
         <div class="hero-top">
           <div>
-            <div class="eyebrow">${safeAppName}</div>
-            <h1>Operacao de mercados em um so painel</h1>
+            <div class="eyebrow">Mercados</div>
+            <h1>Operacao administrativa dos mercados</h1>
             <p>Crie mercados, ajuste regras, suspenda contratos e feche listagens com o mesmo fluxo usado pela API administrativa.</p>
           </div>
           <aside class="identity-card">
@@ -516,61 +521,30 @@ export const renderAdminDashboardPage = (input: {
         \`).join("");
       };
 
-      const fetchJson = async (url, options = {}) => {
-        const response = await window.ProjetoAlfaSession.fetchWithAuth(url, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            ...(options.headers ?? {}),
-          },
-        });
-
-        const payloadText = await response.text();
-        const payload = payloadText ? JSON.parse(payloadText) : null;
-
-        if (!response.ok) {
-          throw new Error(payload?.message ?? "Nao foi possivel concluir a operacao.");
-        }
-
-        return payload;
-      };
-
       const bootstrapSession = async () => {
-        const accessToken = window.ProjetoAlfaSession.getAccessToken();
-
-        if (!accessToken) {
-          redirectToLogin();
-          return false;
-        }
-
         try {
-          const payload = await fetchJson("/api/auth/me", {
-            method: "GET",
-          });
-
-          try {
-            window.ProjetoAlfaSession.requireAdminSession(payload.user);
-          } catch (error) {
-            if (error?.code === "forbidden") {
-              window.ProjetoAlfaSession.updateUser(payload.user);
-              showAccessDenied(payload.user);
-              return false;
-            }
-
-            throw error;
-          }
-
-          window.ProjetoAlfaSession.updateUser(payload.user);
+          const user = await window.ProjetoAlfaSession.resolveAdminUser();
           setIdentity({
-            email: payload.user.email,
-            meta: "Role: " + payload.user.role + " | Status: " + payload.user.status,
+            email: user.email,
+            meta: "Role: " + user.role + " | Status: " + user.status,
           });
           setStatus("Sessao validada. Carregando mercados...", "success");
           return true;
         } catch (error) {
+          const cachedUser = window.ProjetoAlfaSession.get()?.user;
+
+          if (error?.code === "forbidden" && cachedUser) {
+            showAccessDenied(cachedUser);
+            return false;
+          }
+
+          if (error?.code === "unauthenticated") {
+            redirectToLogin("expired");
+            return false;
+          }
+
           window.ProjetoAlfaSession.clear();
-          const reason = error?.code === "unauthenticated" ? "expired" : "";
-          redirectToLogin(reason);
+          redirectToLogin();
           return false;
         }
       };
@@ -578,7 +552,7 @@ export const renderAdminDashboardPage = (input: {
       const loadMarkets = async () => {
         setStatus("Carregando mercados administrativos...");
         try {
-          const payload = await fetchJson("/api/admin/markets", { method: "GET" });
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets", { method: "GET" });
           renderMarkets(payload.items);
           setStatus("Mercados carregados com sucesso.", "success");
         } catch (error) {
@@ -608,7 +582,7 @@ export const renderAdminDashboardPage = (input: {
       const updateMarketStatus = async (marketUuid, status) => {
         setStatus("Atualizando mercado " + marketUuid + " para " + status + "...");
         try {
-          await fetchJson("/api/admin/markets/" + marketUuid, {
+          await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets/" + marketUuid, {
             method: "PATCH",
             body: JSON.stringify({ status }),
           });
@@ -627,7 +601,7 @@ export const renderAdminDashboardPage = (input: {
         event.preventDefault();
         setStatus("Criando mercado...");
         try {
-          const payload = await fetchJson("/api/admin/markets", {
+          const payload = await window.ProjetoAlfaSession.fetchJsonWithAuth("/api/admin/markets", {
             method: "POST",
             body: JSON.stringify(buildCreatePayload(createForm)),
           });

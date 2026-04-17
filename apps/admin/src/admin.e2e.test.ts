@@ -71,7 +71,7 @@ const invokeAdminRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 
@@ -352,8 +352,20 @@ describe("admin sprint 3 e2e", () => {
     const pageHtml = pageResponse.text();
 
     expect(pageResponse.status).toBe(200);
-    expect(pageHtml).toContain("Criar mercado");
-    expect(pageHtml).toContain("Atualizar lista");
+    expect(pageHtml).toContain("Centro operacional do admin");
+    expect(pageHtml).toContain('href="/markets"');
+    expect(pageHtml).toContain('href="/trading"');
+    expect(pageHtml).toContain('href="/portfolio"');
+
+    const marketsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/markets",
+    });
+    const marketsPageHtml = marketsPageResponse.text();
+
+    expect(marketsPageResponse.status).toBe(200);
+    expect(marketsPageHtml).toContain("Criar mercado");
+    expect(marketsPageHtml).toContain("Atualizar lista");
 
     const listResponse = await invokeAdminRoute({
       method: "GET",
@@ -415,6 +427,194 @@ describe("admin sprint 3 e2e", () => {
           slug: "fed-cuts-rates",
           title: "Fed cuts rates in June",
         }),
+      }),
+    );
+  });
+
+  it("serves the portfolio workspace and forwards portfolio proxies", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "position-uuid",
+                marketUuid: "market-uuid",
+                outcome: "YES",
+                netQuantity: 5,
+                averageEntryPrice: "0.54",
+                markPrice: "0.61",
+                realizedPnl: "0.00",
+                unrealizedPnl: "0.35",
+                totalPnl: "0.35",
+                market: {
+                  uuid: "market-uuid",
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            summary: {
+              realizedPnl: "1.20",
+              unrealizedPnl: "0.35",
+              totalPnl: "1.55",
+              openPositions: 2,
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "settlement-uuid",
+                marketUuid: "market-uuid",
+                outcome: "YES",
+                positionDirection: "long",
+                contractsSettled: 5,
+                payoutAmount: "5.00",
+                realizedPnlDelta: "2.30",
+                status: "won",
+                createdAt: "2026-06-18T21:00:00.000Z",
+                market: {
+                  uuid: "market-uuid",
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const workspaceResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio",
+    });
+    const workspaceHtml = workspaceResponse.text();
+
+    expect(workspaceResponse.status).toBe(200);
+    expect(workspaceHtml).toContain("Portfolio operacional em preparacao");
+    expect(workspaceHtml).toContain('href="/portfolio/positions"');
+    expect(workspaceHtml).toContain('href="/portfolio/pnl"');
+    expect(workspaceHtml).toContain('href="/portfolio/settlements"');
+
+    const positionsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/positions",
+    });
+
+    expect(positionsPageResponse.status).toBe(200);
+    expect(positionsPageResponse.text()).toContain("Posicoes em aberto");
+
+    const pnlPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/pnl",
+    });
+
+    expect(pnlPageResponse.status).toBe(200);
+    expect(pnlPageResponse.text()).toContain("PnL consolidado");
+
+    const settlementsPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/settlements",
+    });
+
+    expect(settlementsPageResponse.status).toBe(200);
+    expect(settlementsPageResponse.text()).toContain("Historico de liquidacoes");
+
+    const positionsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/positions?limit=100",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(positionsResponse.status).toBe(200);
+    expect(positionsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "position-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    const pnlResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/pnl",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(pnlResponse.status).toBe(200);
+    expect(pnlResponse.json()).toMatchObject({
+      summary: {
+        totalPnl: "1.55",
+        openPositions: 2,
+      },
+    });
+
+    const settlementsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/portfolio/settlements?limit=100",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+
+    expect(settlementsResponse.status).toBe(200);
+    expect(settlementsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "settlement-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/portfolio/positions?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/portfolio/pnl", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/portfolio/settlements?limit=100", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
       }),
     );
   });
@@ -994,8 +1194,19 @@ describe("admin sprint 3 e2e", () => {
       url: "/",
     });
     expect(dashboardResponse.status).toBe(200);
-    expect(dashboardResponse.text()).toContain("Criar mercado");
-    expect(dashboardResponse.text()).toContain('logout("logged-out")');
+    expect(dashboardResponse.text()).toContain("Centro operacional do admin");
+    expect(dashboardResponse.text()).toContain('href="/markets"');
+    expect(dashboardResponse.text()).toContain('href="/trading"');
+    expect(dashboardResponse.text()).toContain('href="/portfolio"');
+
+    const marketsWorkspaceResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/markets",
+    });
+    expect(marketsWorkspaceResponse.status).toBe(200);
+    expect(marketsWorkspaceResponse.text()).toContain("Criar mercado");
+    expect(marketsWorkspaceResponse.text()).toContain('href="/markets" aria-current="page"');
+    expect(marketsWorkspaceResponse.text()).toContain('logout("logged-out")');
 
     const createMarketResponse = await invokeAdminRoute({
       method: "POST",
@@ -1106,4 +1317,262 @@ describe("admin sprint 3 e2e", () => {
       }),
     );
   });
+
+  it("serves trading routes and forwards order operations", async () => {
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "market-uuid",
+                title: "Fed cuts rates in June",
+                category: "macro",
+                closeAt: "2026-06-18T21:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: "order-uuid",
+              marketUuid: "market-uuid",
+            },
+          }),
+          { status: 201, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                uuid: "order-uuid",
+                marketUuid: "market-uuid",
+                side: "buy",
+                outcome: "YES",
+                status: "open",
+                price: 55,
+                quantity: 10,
+                remainingQuantity: 10,
+                createdAt: "2026-06-10T14:00:00.000Z",
+                market: {
+                  title: "Fed cuts rates in June",
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            order: {
+              uuid: "order-uuid",
+              status: "cancelled",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json; charset=utf-8" } },
+        ),
+      );
+
+    globalThis.fetch = fetchMock;
+
+    const tradingResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading",
+    });
+    expect(tradingResponse.status).toBe(200);
+    expect(tradingResponse.text()).toContain("Mesa operacional em preparacao");
+    expect(tradingResponse.text()).toContain("/trading/new");
+    expect(tradingResponse.text()).toContain("/trading/orders");
+
+    const tradingNewResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/new",
+    });
+    expect(tradingNewResponse.status).toBe(200);
+    expect(tradingNewResponse.text()).toContain("Nova ordem operacional");
+    expect(tradingNewResponse.text()).toContain("/api/orders");
+
+    const marketsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/markets?status=open",
+    });
+    expect(marketsResponse.status).toBe(200);
+    expect(marketsResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "market-uuid",
+        },
+      ],
+    });
+
+    const createOrderResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/orders",
+      headers: {
+        authorization: "Bearer admin-token",
+        "content-type": "application/json",
+      },
+      body: {
+        marketUuid: "market-uuid",
+        side: "buy",
+        outcome: "YES",
+        price: 55,
+        quantity: 10,
+      },
+    });
+    expect(createOrderResponse.status).toBe(201);
+    expect(createOrderResponse.json()).toMatchObject({
+      order: {
+        uuid: "order-uuid",
+      },
+    });
+
+    const tradingOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/orders",
+    });
+    expect(tradingOrdersResponse.status).toBe(200);
+    expect(tradingOrdersResponse.text()).toContain("Ordens do usuario");
+    expect(tradingOrdersResponse.text()).toContain("/api/orders/");
+
+    const listOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/api/orders?marketUuid=market-uuid&status=open&limit=50",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(listOrdersResponse.status).toBe(200);
+    expect(listOrdersResponse.json()).toMatchObject({
+      items: [
+        {
+          uuid: "order-uuid",
+          marketUuid: "market-uuid",
+        },
+      ],
+    });
+
+    const cancelResponse = await invokeAdminRoute({
+      method: "POST",
+      url: "/api/orders/order-uuid/cancel",
+      headers: {
+        authorization: "Bearer admin-token",
+      },
+    });
+    expect(cancelResponse.status).toBe(200);
+    expect(cancelResponse.json()).toMatchObject({
+      order: {
+        uuid: "order-uuid",
+        status: "cancelled",
+      },
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      new URL("/markets?status=open", "http://localhost:4000"),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      new URL("/orders", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer admin-token",
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      new URL("/orders?marketUuid=market-uuid&status=open&limit=50", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "GET",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      new URL("/orders/order-uuid/cancel", "http://localhost:4000"),
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer admin-token",
+        },
+      }),
+    );
+  });
+
+  it("links the market page to prefilled trading and filtered portfolio flows", async () => {
+    const marketUuid = "8fbc76f5-3958-4cb5-a7ef-c4bd67b29520";
+
+    const marketPageResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/markets/${marketUuid}`,
+    });
+
+    expect(marketPageResponse.status).toBe(200);
+    expect(marketPageResponse.text()).toContain(`/trading/new?marketUuid=${marketUuid}`);
+    expect(marketPageResponse.text()).toContain(`/trading/orders?marketUuid=${marketUuid}`);
+    expect(marketPageResponse.text()).toContain(`/portfolio/positions?marketUuid=${marketUuid}`);
+
+    const tradingPrefilledResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/trading/new?marketUuid=${marketUuid}`,
+    });
+
+    expect(tradingPrefilledResponse.status).toBe(200);
+    expect(tradingPrefilledResponse.text()).toContain("Mercado preselecionado a partir da tela anterior");
+    expect(tradingPrefilledResponse.text()).toContain('id="market-select"');
+
+    const portfolioFilteredResponse = await invokeAdminRoute({
+      method: "GET",
+      url: `/portfolio/positions?marketUuid=${marketUuid}`,
+    });
+
+    expect(portfolioFilteredResponse.status).toBe(200);
+    expect(portfolioFilteredResponse.text()).toContain("Filtro ativo:");
+    expect(portfolioFilteredResponse.text()).toContain("abrir mercado");
+  });
+
+  it("serves operational summary states for trading and portfolio workspaces", async () => {
+    const tradingOrdersResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/trading/orders?marketUuid=market-uuid&status=open&notice=created",
+    });
+
+    expect(tradingOrdersResponse.status).toBe(200);
+    expect(tradingOrdersResponse.text()).toContain("Ordens listadas");
+    expect(tradingOrdersResponse.text()).toContain("Cancelaveis");
+    expect(tradingOrdersResponse.text()).toContain("Nova ordem registrada");
+    expect(tradingOrdersResponse.text()).toContain("Filtros ativos:");
+
+    const portfolioPnlResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/pnl",
+    });
+
+    expect(portfolioPnlResponse.status).toBe(200);
+    expect(portfolioPnlResponse.text()).toContain('id="total-pnl-card"');
+    expect(portfolioPnlResponse.text()).toContain("Nao ha posicoes abertas neste momento.");
+
+    const portfolioSettlementsResponse = await invokeAdminRoute({
+      method: "GET",
+      url: "/portfolio/settlements",
+    });
+
+    expect(portfolioSettlementsResponse.status).toBe(200);
+    expect(portfolioSettlementsResponse.text()).toContain("Vitorias");
+    expect(portfolioSettlementsResponse.text()).toContain("Payout total");
+  });
 });
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;

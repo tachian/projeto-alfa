@@ -20,8 +20,17 @@ import type {
 import { MarketCatalogError } from "../markets/public-service.js";
 import type { CreateOrderInput, ListOrdersInput, ListOrdersResult, OrderRecord, OrderServiceContract } from "../orders/service.js";
 import { OrderError } from "../orders/service.js";
-import type { CreatePaymentInput, ListPaymentsInput, ListPaymentsResult, PaymentRecord, PaymentServiceContract } from "../payments/service.js";
-import { PaymentError } from "../payments/service.js";
+import type {
+  CreatePaymentInput,
+  ListPaymentMethodsInput,
+  ListPaymentMethodsResult,
+  ListPaymentsInput,
+  ListPaymentsResult,
+  PaymentMethodRecord,
+  PaymentRecord,
+  PaymentServiceContract,
+} from "../payments/service.js";
+import { PaymentError } from "../payments/errors.js";
 import type {
   PortfolioPnlSummary,
   PortfolioPositionRecord,
@@ -435,6 +444,65 @@ class InMemoryExchange
     };
   }
 
+  async listMethods(input: ListPaymentMethodsInput = {}): Promise<ListPaymentMethodsResult> {
+    const allItems = [
+      {
+        key: "manual_mock",
+        type: "deposit",
+        provider: "manual",
+        availability: "enabled",
+        executionModel: "instant_completion",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: false,
+        description: "Metodo local de desenvolvimento que liquida o deposito imediatamente no ledger.",
+      },
+      {
+        key: "pix",
+        type: "deposit",
+        provider: "pix_mock",
+        availability: "planned",
+        executionModel: "async_confirmation",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: true,
+        description: "Fluxo preparado para PIX com confirmacao assincrona por webhook ou conciliacao.",
+      },
+      {
+        key: "manual_mock",
+        type: "withdrawal",
+        provider: "manual",
+        availability: "enabled",
+        executionModel: "instant_completion",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: false,
+        description: "Metodo local de desenvolvimento que liquida o saque imediatamente no ledger.",
+      },
+      {
+        key: "pix_cashout",
+        type: "withdrawal",
+        provider: "pix_mock",
+        availability: "planned",
+        executionModel: "async_confirmation",
+        supportedCurrencies: ["USD"],
+        idempotencySupported: true,
+        asyncSettlement: true,
+        description: "Fluxo preparado para cash-out por PIX com confirmacao assincrona do provedor.",
+      },
+    ] satisfies PaymentMethodRecord[];
+
+    const filteredItems = allItems.filter((item) => !input.type || item.type === input.type);
+
+    return {
+      items: filteredItems,
+      meta: {
+        count: filteredItems.length,
+        type: input.type ?? "all",
+      },
+    };
+  }
+
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
     const market = this.state.markets.get(input.marketUuid);
 
@@ -497,7 +565,7 @@ class InMemoryExchange
         return right.price - left.price || left.createdAt.getTime() - right.createdAt.getTime();
       });
 
-    let currentOrder = order;
+    const currentOrder = order;
 
     for (const resting of matches) {
       if (currentOrder.remainingQuantity === 0) {
@@ -996,7 +1064,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Buyer Example",
           email: "buyer@example.com",
+          phone: "+5585111111111",
           password,
         },
       });
@@ -1007,7 +1077,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Seller Example",
           email: "seller@example.com",
+          phone: "+5585222222222",
           password,
         },
       });
@@ -1018,7 +1090,9 @@ describe("settlement sprint 5 e2e", () => {
         method: "POST",
         url: "/auth/register",
         payload: {
+          name: "Admin Example",
           email: "admin@example.com",
+          phone: "+5585333333333",
           password,
         },
       });

@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 .PHONY: help install setup infra-up infra-down infra-logs db-generate db-migrate db-migrate-dev \
-	api-dev admin-dev worker-dev dev lint test load-test typecheck build clean check
+	api-dev admin-dev web-dev worker-dev dev lint test load-test typecheck build clean check
 
 help:
 	@echo "Comandos disponiveis:"
@@ -16,6 +16,7 @@ help:
 	@echo "  make db-migrate-dev  - executa prisma migrate dev no api"
 	@echo "  make api-dev         - sobe apenas o api em modo desenvolvimento"
 	@echo "  make admin-dev       - sobe apenas o admin em modo desenvolvimento"
+	@echo "  make web-dev         - sobe apenas o portal web em modo desenvolvimento"
 	@echo "  make worker-dev      - sobe apenas o worker em modo desenvolvimento"
 	@echo "  make dev             - sobe todos os apps do monorepo em paralelo"
 	@echo "  make lint            - roda ESLint"
@@ -54,6 +55,9 @@ api-dev:
 
 admin-dev:
 	pnpm --filter @projeto-alfa/admin dev
+
+web-dev:
+	pnpm --filter @projeto-alfa/web dev
 
 worker-dev:
 	pnpm --filter @projeto-alfa/worker dev

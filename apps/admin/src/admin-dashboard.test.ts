@@ -5,9 +5,12 @@ describe("renderAdminDashboardPage", () => {
   it("renders the admin dashboard shell with create and action controls", () => {
     const html = renderAdminDashboardPage({
       appName: "projeto-alfa-admin",
+      pathname: "/markets",
     });
 
     expect(html).toContain("Criar mercado");
+    expect(html).toContain("Operacao administrativa dos mercados");
+    expect(html).toContain('href="/markets" aria-current="page"');
     expect(html).toContain("/api/admin/markets");
     expect(html).toContain("/api/auth/me");
     expect(html).toContain("Suspender");

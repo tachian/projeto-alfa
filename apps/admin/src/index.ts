@@ -5,19 +5,37 @@ import { renderAdminDashboardPage } from "./admin-dashboard.js";
 import { adminConfig } from "./config.js";
 import { renderLoginPage } from "./login-page.js";
 import { renderMarketPage } from "./market-page.js";
+import { renderPortfolioPnlPage } from "./portfolio-pnl-page.js";
+import { renderPortfolioPositionsPage } from "./portfolio-positions-page.js";
+import { renderPortfolioSettlementsPage } from "./portfolio-settlements-page.js";
+import { renderTradingNewPage } from "./trading-new-page.js";
+import { renderTradingOrdersPage } from "./trading-orders-page.js";
+import { renderWorkspacePage } from "./workspace-page.js";
 
-const readJsonBody = async (request: IncomingMessage) => {
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
+
+const readJsonBody = async (request: IncomingMessage): Promise<unknown> => {
   const chunks: Buffer[] = [];
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    if (Buffer.isBuffer(chunk)) {
+      chunks.push(chunk);
+      continue;
+    }
+
+    if (chunk instanceof Uint8Array) {
+      chunks.push(Buffer.from(chunk));
+      continue;
+    }
+
+    chunks.push(Buffer.from(String(chunk)));
   }
 
   if (!chunks.length) {
     return null;
   }
 
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return parseJson(Buffer.concat(chunks).toString("utf8"));
 };
 
 const proxyApiRequest = async (input: {
@@ -80,9 +98,10 @@ const proxyPublicMarketRequest = async (input: {
   }
 };
 
-export const createAdminServer = () => createServer(async (request, response) => {
-  return handleAdminRequest(request, response);
-});
+export const createAdminServer = () =>
+  createServer((request, response) => {
+    void handleAdminRequest(request, response);
+  });
 
 export const handleAdminRequest = async (
   request: IncomingMessage,
@@ -96,8 +115,30 @@ export const handleAdminRequest = async (
       "content-type": "text/html; charset=utf-8",
     });
     response.end(
-      renderAdminDashboardPage({
+      renderWorkspacePage({
         appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Dashboard",
+        title: "Centro operacional do admin",
+        description: "Use o menu para navegar entre mercados, trading e portfolio sem concentrar toda a operacao em uma unica tela.",
+        cards: [
+          {
+            title: "Mercados",
+            description: "Crie, suspenda, feche e acompanhe contratos com regras e resolucoes claras.",
+            href: "/markets",
+            tone: "accent",
+          },
+          {
+            title: "Trading",
+            description: "Area reservada para envio de ordens, acompanhamento operacional e execucao.",
+            href: "/trading",
+          },
+          {
+            title: "Portfolio",
+            description: "Consulte posicoes, PnL e historico de liquidacoes em uma area dedicada.",
+            href: "/portfolio",
+          },
+        ],
       }),
     );
     return;
@@ -149,6 +190,147 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (request.method === "GET" && pathname === "/markets") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderAdminDashboardPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderWorkspacePage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Trading",
+        title: "Mesa operacional em preparacao",
+        description: "Esta area vai concentrar envio de ordens, ordens abertas e execucoes sem poluir as telas de mercado.",
+        cards: [
+          {
+            title: "Nova ordem",
+            description: "Formulario dedicado para entrada de ordens com contexto operacional claro.",
+            href: "/trading/new",
+            tone: "accent",
+          },
+          {
+            title: "Ordens do usuario",
+            description: "Lista de ordens abertas e historico recente com acoes de cancelamento.",
+            href: "/trading/orders",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading/new") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderTradingNewPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/trading/orders") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderTradingOrdersPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderWorkspacePage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+        eyebrow: "Portfolio",
+        title: "Portfolio operacional em preparacao",
+        description: "Esta area organiza posicoes, PnL e liquidacoes em telas separadas da administracao de mercados e da mesa de trading.",
+        cards: [
+          {
+            title: "Posicoes",
+            description: "Tabela dedicada para quantidade liquida, preco medio e exposicao por mercado.",
+            href: "/portfolio/positions",
+            tone: "accent",
+          },
+          {
+            title: "PnL",
+            description: "Resumo financeiro agregado com realizado, nao realizado e total da carteira.",
+            href: "/portfolio/pnl",
+          },
+          {
+            title: "Liquidacoes",
+            description: "Historico de settlement por mercado para acompanhar o ciclo completo dos contratos.",
+            href: "/portfolio/settlements",
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/positions") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioPositionsPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/pnl") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioPnlPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
+  if (request.method === "GET" && pathname === "/portfolio/settlements") {
+    response.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+    });
+    response.end(
+      renderPortfolioSettlementsPage({
+        appName: adminConfig.APP_NAME,
+        pathname,
+      }),
+    );
+    return;
+  }
+
   if (request.method === "GET" && pathname.startsWith("/markets/")) {
     const marketUuid = pathname.replace("/markets/", "").trim();
 
@@ -172,6 +354,25 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/markets" && request.method === "GET") {
+    try {
+      const upstreamResponse = await fetch(new URL(`/markets${requestUrl.search}`, adminConfig.ADMIN_API_URL));
+      const contentType = upstreamResponse.headers.get("content-type") ?? "application/json; charset=utf-8";
+      const payload = await upstreamResponse.text();
+
+      response.writeHead(upstreamResponse.status, {
+        "content-type": contentType,
+      });
+      response.end(payload);
+    } catch {
+      response.writeHead(502, {
+        "content-type": "application/json; charset=utf-8",
+      });
+      response.end(JSON.stringify({ message: "Falha ao consultar a API de mercados." }));
+    }
+    return;
+  }
+
   if (request.method === "GET" && pathname.startsWith("/api/markets/")) {
     const remainder = pathname.replace("/api/markets/", "").trim();
     const [marketUuid, resource] = remainder.split("/");
@@ -185,12 +386,65 @@ export const handleAdminRequest = async (
     return;
   }
 
+  if (pathname === "/api/orders" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/orders",
+      method: "POST",
+      body,
+    });
+    return;
+  }
+
   if (pathname === "/api/orders" && request.method === "GET") {
     await proxyApiRequest({
       request,
       response,
       path: `/orders${requestUrl.search}`,
       method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/positions" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/portfolio/positions${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/pnl" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: "/portfolio/pnl",
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname === "/api/portfolio/settlements" && request.method === "GET") {
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/portfolio/settlements${requestUrl.search}`,
+      method: "GET",
+    });
+    return;
+  }
+
+  if (pathname.startsWith("/api/orders/") && pathname.endsWith("/cancel") && request.method === "POST") {
+    const orderUuid = pathname.replace("/api/orders/", "").replace("/cancel", "").trim();
+    await proxyApiRequest({
+      request,
+      response,
+      path: `/orders/${orderUuid}/cancel`,
+      method: "POST",
     });
     return;
   }

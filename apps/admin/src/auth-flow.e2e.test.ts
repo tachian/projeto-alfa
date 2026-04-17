@@ -72,7 +72,7 @@ const invokeAdminRoute = async (input: {
     status: response.statusCode,
     headers: response.headers,
     text: () => response.body,
-    json: () => JSON.parse(response.body),
+    json: () => parseJson(response.body),
   };
 };
 
@@ -246,3 +246,4 @@ describe("admin auth flow e2e", () => {
     });
   });
 });
+const parseJson = (value: string): unknown => JSON.parse(value) as unknown;
